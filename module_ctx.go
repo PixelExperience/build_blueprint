@@ -246,6 +246,24 @@ type BaseModuleContext interface {
 	// invalidated by future mutators.
 	WalkDeps(visit func(Module, Module) bool)
 
+	// PrimaryModule returns the first variant of the current module.  Variants of a module are always visited in
+	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
+	// Module returned by PrimaryModule without data races.  This can be used to perform singleton actions that are
+	// only done once for all variants of a module.
+	PrimaryModule() Module
+
+	// FinalModule returns the last variant of the current module.  Variants of a module are always visited in
+	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
+	// variants using VisitAllModuleVariants if the current module == FinalModule().  This can be used to perform
+	// singleton actions that are only done once for all variants of a module.
+	FinalModule() Module
+
+	// VisitAllModuleVariants calls visit for each variant of the current module.  Variants of a module are always
+	// visited in order by mutators and GenerateBuildActions, so the data created by the current mutator can be read
+	// from all variants if the current module == FinalModule().  Otherwise, care must be taken to not access any
+	// data modified by the current mutator.
+	VisitAllModuleVariants(visit func(Module))
+
 	// OtherModuleName returns the name of another Module.  See BaseModuleContext.ModuleName for more information.
 	// It is intended for use inside the visit functions of Visit* and WalkDeps.
 	OtherModuleName(m Module) string
@@ -308,24 +326,6 @@ type ModuleContext interface {
 
 	// Build creates a new ninja build statement.
 	Build(pctx PackageContext, params BuildParams)
-
-	// PrimaryModule returns the first variant of the current module.  Variants of a module are always visited in
-	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
-	// Module returned by PrimaryModule without data races.  This can be used to perform singleton actions that are
-	// only done once for all variants of a module.
-	PrimaryModule() Module
-
-	// FinalModule returns the last variant of the current module.  Variants of a module are always visited in
-	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
-	// variants using VisitAllModuleVariants if the current module == FinalModule().  This can be used to perform
-	// singleton actions that are only done once for all variants of a module.
-	FinalModule() Module
-
-	// VisitAllModuleVariants calls visit for each variant of the current module.  Variants of a module are always
-	// visited in order by mutators and GenerateBuildActions, so the data created by the current mutator can be read
-	// from all variants if the current module == FinalModule().  Otherwise, care must be taken to not access any
-	// data modified by the current mutator.
-	VisitAllModuleVariants(visit func(Module))
 
 	// GetMissingDependencies returns the list of dependencies that were passed to AddDependencies or related methods,
 	// but do not exist.  It can be used with Context.SetAllowMissingDependencies to allow the primary builder to
@@ -510,7 +510,7 @@ func (m *baseModuleContext) OtherModuleDependencyVariantExists(variations []Vari
 	if possibleDeps == nil {
 		return false
 	}
-	found, _ := m.context.findVariant(m.module, possibleDeps, variations, false, false)
+	found, _ := findVariant(m.module, possibleDeps, variations, false, false)
 	return found != nil
 }
 
@@ -519,7 +519,7 @@ func (m *baseModuleContext) OtherModuleReverseDependencyVariantExists(name strin
 	if possibleDeps == nil {
 		return false
 	}
-	found, _ := m.context.findVariant(m.module, possibleDeps, nil, false, true)
+	found, _ := findVariant(m.module, possibleDeps, nil, false, true)
 	return found != nil
 }
 
@@ -642,6 +642,18 @@ func (m *baseModuleContext) WalkDeps(visit func(child, parent Module) bool) {
 	m.visitingDep = depInfo{}
 }
 
+func (m *baseModuleContext) PrimaryModule() Module {
+	return m.module.group.modules.firstModule().logicModule
+}
+
+func (m *baseModuleContext) FinalModule() Module {
+	return m.module.group.modules.lastModule().logicModule
+}
+
+func (m *baseModuleContext) VisitAllModuleVariants(visit func(Module)) {
+	m.context.visitAllModuleVariants(m.module, visit)
+}
+
 func (m *baseModuleContext) AddNinjaFileDeps(deps ...string) {
 	m.ninjaFileDeps = append(m.ninjaFileDeps, deps...)
 }
@@ -695,18 +707,6 @@ func (m *moduleContext) Build(pctx PackageContext, params BuildParams) {
 	m.actionDefs.buildDefs = append(m.actionDefs.buildDefs, def)
 }
 
-func (m *moduleContext) PrimaryModule() Module {
-	return m.module.group.modules[0].logicModule
-}
-
-func (m *moduleContext) FinalModule() Module {
-	return m.module.group.modules[len(m.module.group.modules)-1].logicModule
-}
-
-func (m *moduleContext) VisitAllModuleVariants(visit func(Module)) {
-	m.context.visitAllModuleVariants(m.module, visit)
-}
-
 func (m *moduleContext) GetMissingDependencies() []string {
 	m.handledMissingDeps = true
 	return m.module.missingDeps
@@ -722,8 +722,8 @@ type mutatorContext struct {
 	reverseDeps      []reverseDep
 	rename           []rename
 	replace          []replace
-	newVariations    []*moduleInfo // new variants of existing modules
-	newModules       []*moduleInfo // brand new modules
+	newVariations    modulesOrAliases // new variants of existing modules
+	newModules       []*moduleInfo    // brand new modules
 	defaultVariation *string
 }
 
@@ -921,7 +921,7 @@ func (mctx *mutatorContext) createVariations(variationNames []string, local bool
 	}
 
 	for _, module := range modules {
-		ret = append(ret, module.logicModule)
+		ret = append(ret, module.module().logicModule)
 	}
 
 	if mctx.newVariations != nil {
@@ -937,25 +937,30 @@ func (mctx *mutatorContext) createVariations(variationNames []string, local bool
 }
 
 func (mctx *mutatorContext) AliasVariation(variationName string) {
-	for _, alias := range mctx.module.pendingAliases {
-		if alias.fromVariant.variations.equal(mctx.module.variant.variations) {
-			panic(fmt.Errorf("AliasVariation already called"))
+	for _, moduleOrAlias := range mctx.module.splitModules {
+		if alias := moduleOrAlias.alias(); alias != nil {
+			if alias.variant.variations.equal(mctx.module.variant.variations) {
+				panic(fmt.Errorf("AliasVariation already called"))
+			}
 		}
 	}
 
 	for _, variant := range mctx.newVariations {
-		if variant.variant.variations[mctx.name] == variationName {
-			mctx.module.pendingAliases = append(mctx.module.pendingAliases, pendingAlias{
-				fromVariant: mctx.module.variant,
-				target:      variant,
-			})
+		if variant.moduleOrAliasVariant().variations[mctx.name] == variationName {
+			alias := &moduleAlias{
+				variant: mctx.module.variant,
+				target:  variant.moduleOrAliasTarget(),
+			}
+			// Prepend the alias so that AddFarVariationDependencies subset match matches
+			// the alias before matching the first variation.
+			mctx.module.splitModules = append(modulesOrAliases{alias}, mctx.module.splitModules...)
 			return
 		}
 	}
 
 	var foundVariations []string
 	for _, variant := range mctx.newVariations {
-		foundVariations = append(foundVariations, variant.variant.variations[mctx.name])
+		foundVariations = append(foundVariations, variant.moduleOrAliasVariant().variations[mctx.name])
 	}
 	panic(fmt.Errorf("no %q variation in module variations %q", variationName, foundVariations))
 }
@@ -963,17 +968,22 @@ func (mctx *mutatorContext) AliasVariation(variationName string) {
 func (mctx *mutatorContext) CreateAliasVariation(aliasVariationName, targetVariationName string) {
 	newVariant := newVariant(mctx.module, mctx.name, aliasVariationName, false)
 
-	for _, alias := range mctx.module.pendingAliases {
-		if alias.fromVariant.variations.equal(newVariant.variations) {
-			panic(fmt.Errorf("can't alias %q to %q, already aliased to %q", aliasVariationName, targetVariationName, alias.target.variant.name))
+	for _, moduleOrAlias := range mctx.module.splitModules {
+		if moduleOrAlias.moduleOrAliasVariant().variations.equal(newVariant.variations) {
+			if alias := moduleOrAlias.alias(); alias != nil {
+				panic(fmt.Errorf("can't alias %q to %q, already aliased to %q", aliasVariationName, targetVariationName, alias.target.variant.name))
+			} else {
+				panic(fmt.Errorf("can't alias %q to %q, there is already a variant with that name", aliasVariationName, targetVariationName))
+			}
 		}
 	}
 
 	for _, variant := range mctx.newVariations {
-		if variant.variant.variations[mctx.name] == targetVariationName {
-			mctx.module.pendingAliases = append(mctx.module.pendingAliases, pendingAlias{
-				fromVariant: newVariant,
-				target:      variant,
+		if variant.moduleOrAliasVariant().variations[mctx.name] == targetVariationName {
+			// Append the alias here so that it comes after any aliases created by AliasVariation.
+			mctx.module.splitModules = append(mctx.module.splitModules, &moduleAlias{
+				variant: newVariant,
+				target:  variant.moduleOrAliasTarget(),
 			})
 			return
 		}
@@ -981,7 +991,7 @@ func (mctx *mutatorContext) CreateAliasVariation(aliasVariationName, targetVaria
 
 	var foundVariations []string
 	for _, variant := range mctx.newVariations {
-		foundVariations = append(foundVariations, variant.variant.variations[mctx.name])
+		foundVariations = append(foundVariations, variant.moduleOrAliasVariant().variations[mctx.name])
 	}
 	panic(fmt.Errorf("no %q variation in module variations %q", targetVariationName, foundVariations))
 }
