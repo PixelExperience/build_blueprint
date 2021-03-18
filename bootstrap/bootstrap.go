@@ -163,7 +163,7 @@ var (
 		"depfile")
 
 	_ = pctx.VariableFunc("BinDir", func(config interface{}) (string, error) {
-		return bootstrapBinDir(), nil
+		return bootstrapBinDir(config), nil
 	})
 
 	_ = pctx.VariableFunc("ToolDir", func(config interface{}) (string, error) {
@@ -186,15 +186,15 @@ type GoBinaryTool interface {
 	isGoBinary()
 }
 
-func bootstrapBinDir() string {
-	return filepath.Join(BuildDir, bootstrapSubDir, "bin")
+func bootstrapBinDir(config interface{}) string {
+	return filepath.Join(config.(BootstrapConfig).BuildDir(), bootstrapSubDir, "bin")
 }
 
 func toolDir(config interface{}) string {
 	if c, ok := config.(ConfigBlueprintToolLocation); ok {
 		return filepath.Join(c.BlueprintToolLocation())
 	}
-	return filepath.Join(BuildDir, "bin")
+	return filepath.Join(config.(BootstrapConfig).BuildDir(), "bin")
 }
 
 func pluginDeps(ctx blueprint.BottomUpMutatorContext) {
@@ -749,9 +749,11 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 		filepath.Base(s.config.topLevelBlueprintsFile))
 	ctx.SetNinjaBuildDir(pctx, "${ninjaBuildDir}")
 
+	buildDir := ctx.Config().(BootstrapConfig).BuildDir()
+
 	if s.config.stage == StagePrimary {
 		mainNinjaFile := filepath.Join("$buildDir", "build.ninja")
-		primaryBuilderNinjaGlobFile := absolutePath(filepath.Join(BuildDir, bootstrapSubDir, "build-globs.ninja"))
+		primaryBuilderNinjaGlobFile := absolutePath(filepath.Join(buildDir, bootstrapSubDir, "build-globs.ninja"))
 
 		if _, err := os.Stat(primaryBuilderNinjaGlobFile); os.IsNotExist(err) {
 			err = ioutil.WriteFile(primaryBuilderNinjaGlobFile, nil, 0666)

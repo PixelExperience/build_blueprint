@@ -122,7 +122,7 @@ func globSingletonFactory(ctx *blueprint.Context) func() blueprint.Singleton {
 
 func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	for _, g := range s.globLister() {
-		fileListFile := filepath.Join(BuildDir, ".glob", g.Name)
+		fileListFile := filepath.Join(ctx.Config().(BootstrapConfig).BuildDir(), ".glob", g.Name)
 
 		if s.writeRule {
 			// We need to write the file list here so that it has an older modified date
@@ -146,7 +146,7 @@ func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	}
 }
 
-func generateGlobNinjaFile(globLister func() []blueprint.GlobPath) ([]byte, []error) {
+func generateGlobNinjaFile(config interface{}, globLister func() []blueprint.GlobPath) ([]byte, []error) {
 	ctx := blueprint.NewContext()
 	ctx.RegisterSingletonType("glob", func() blueprint.Singleton {
 		return &globSingleton{
@@ -155,7 +155,7 @@ func generateGlobNinjaFile(globLister func() []blueprint.GlobPath) ([]byte, []er
 		}
 	})
 
-	extraDeps, errs := ctx.ResolveDependencies(nil)
+	extraDeps, errs := ctx.ResolveDependencies(config)
 	if len(extraDeps) > 0 {
 		return nil, []error{fmt.Errorf("shouldn't have extra deps")}
 	}
@@ -163,7 +163,7 @@ func generateGlobNinjaFile(globLister func() []blueprint.GlobPath) ([]byte, []er
 		return nil, errs
 	}
 
-	extraDeps, errs = ctx.PrepareBuildActions(nil)
+	extraDeps, errs = ctx.PrepareBuildActions(config)
 	if len(extraDeps) > 0 {
 		return nil, []error{fmt.Errorf("shouldn't have extra deps")}
 	}
