@@ -50,46 +50,30 @@ type Args struct {
 	NinjaBuildDir            string
 	TopFile                  string
 	GeneratingPrimaryBuilder bool
+
+	PrimaryBuilderInvocations []PrimaryBuilderInvocation
 }
 
 var (
-	cmdline   Args
-	absSrcDir string
+	CmdlineArgs Args
+	absSrcDir   string
 )
 
-func CmdlineOutFile() string {
-	return cmdline.OutFile
-}
-
-// Returns the build dir as parsed from the command line. This is necessary
-// because even though these flags are defined here, soong_build accesses them.
-// The plan is to move these flags to soong_build.
-func CmdlineBuildDir() string {
-	return cmdline.BuildDir
-}
-
-// Returns the module list file as parsed from the command line. This is necessary
-// because even though these flags are defined here, soong_build accesses them.
-// The plan is to move these flags to soong_build.
-func CmdlineModuleListFile() string {
-	return cmdline.ModuleListFile
-}
-
 func init() {
-	flag.StringVar(&cmdline.OutFile, "o", "build.ninja", "the Ninja file to output")
-	flag.StringVar(&cmdline.GlobFile, "globFile", "build-globs.ninja", "the Ninja file of globs to output")
-	flag.StringVar(&cmdline.BuildDir, "b", ".", "the build output directory")
-	flag.StringVar(&cmdline.NinjaBuildDir, "n", "", "the ninja builddir directory")
-	flag.StringVar(&cmdline.DepFile, "d", "", "the dependency file to output")
-	flag.StringVar(&cmdline.DocFile, "docs", "", "build documentation file to output")
-	flag.StringVar(&cmdline.Cpuprofile, "cpuprofile", "", "write cpu profile to file")
-	flag.StringVar(&cmdline.TraceFile, "trace", "", "write trace to file")
-	flag.StringVar(&cmdline.Memprofile, "memprofile", "", "write memory profile to file")
-	flag.BoolVar(&cmdline.NoGC, "nogc", false, "turn off GC for debugging")
-	flag.BoolVar(&cmdline.RunGoTests, "t", false, "build and run go tests during bootstrap")
-	flag.BoolVar(&cmdline.UseValidations, "use-validations", false, "use validations to depend on go tests")
-	flag.StringVar(&cmdline.ModuleListFile, "l", "", "file that lists filepaths to parse")
-	flag.BoolVar(&cmdline.EmptyNinjaFile, "empty-ninja-file", false, "write out a 0-byte ninja file")
+	flag.StringVar(&CmdlineArgs.OutFile, "o", "build.ninja", "the Ninja file to output")
+	flag.StringVar(&CmdlineArgs.GlobFile, "globFile", "build-globs.ninja", "the Ninja file of globs to output")
+	flag.StringVar(&CmdlineArgs.BuildDir, "b", ".", "the build output directory")
+	flag.StringVar(&CmdlineArgs.NinjaBuildDir, "n", "", "the ninja builddir directory")
+	flag.StringVar(&CmdlineArgs.DepFile, "d", "", "the dependency file to output")
+	flag.StringVar(&CmdlineArgs.DocFile, "docs", "", "build documentation file to output")
+	flag.StringVar(&CmdlineArgs.Cpuprofile, "cpuprofile", "", "write cpu profile to file")
+	flag.StringVar(&CmdlineArgs.TraceFile, "trace", "", "write trace to file")
+	flag.StringVar(&CmdlineArgs.Memprofile, "memprofile", "", "write memory profile to file")
+	flag.BoolVar(&CmdlineArgs.NoGC, "nogc", false, "turn off GC for debugging")
+	flag.BoolVar(&CmdlineArgs.RunGoTests, "t", false, "build and run go tests during bootstrap")
+	flag.BoolVar(&CmdlineArgs.UseValidations, "use-validations", false, "use validations to depend on go tests")
+	flag.StringVar(&CmdlineArgs.ModuleListFile, "l", "", "file that lists filepaths to parse")
+	flag.BoolVar(&CmdlineArgs.EmptyNinjaFile, "empty-ninja-file", false, "write out a 0-byte ninja file")
 }
 
 func Main(ctx *blueprint.Context, config interface{}, generatingPrimaryBuilder bool, extraNinjaFileDeps ...string) {
@@ -101,12 +85,16 @@ func Main(ctx *blueprint.Context, config interface{}, generatingPrimaryBuilder b
 		fatalf("no Blueprints file specified")
 	}
 
-	cmdline.TopFile = flag.Arg(0)
-	cmdline.GeneratingPrimaryBuilder = generatingPrimaryBuilder
-	RunBlueprint(cmdline, ctx, config, extraNinjaFileDeps...)
+	CmdlineArgs.TopFile = flag.Arg(0)
+	CmdlineArgs.GeneratingPrimaryBuilder = generatingPrimaryBuilder
+	deps := RunBlueprint(CmdlineArgs, ctx, config, extraNinjaFileDeps...)
+	err := deptools.WriteDepFile(CmdlineArgs.DepFile, CmdlineArgs.OutFile, deps)
+	if err != nil {
+		fatalf("Cannot write depfile '%s': %s", CmdlineArgs.DepFile, err)
+	}
 }
 
-func primaryBuilderExtraFlags(args Args, globFile, mainNinjaFile string) []string {
+func PrimaryBuilderExtraFlags(args Args, globFile, mainNinjaFile string) []string {
 	result := make([]string, 0)
 
 	if args.RunGoTests {
@@ -129,7 +117,6 @@ func primaryBuilderExtraFlags(args Args, globFile, mainNinjaFile string) []strin
 		result = append(result, "--delve_path", args.DelvePath)
 	}
 
-	result = append(result, args.TopFile)
 	return result
 }
 
@@ -146,7 +133,7 @@ func writeEmptyGlobFile(path string) {
 		}
 	}
 }
-func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}, extraNinjaFileDeps ...string) {
+func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}, extraNinjaFileDeps ...string) []string {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if args.NoGC {
@@ -200,20 +187,29 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}, extraNi
 
 	writeEmptyGlobFile(primaryBuilderNinjaGlobFile)
 
+	var invocations []PrimaryBuilderInvocation
+
+	if args.PrimaryBuilderInvocations != nil {
+		invocations = args.PrimaryBuilderInvocations
+	} else {
+		primaryBuilderArgs := PrimaryBuilderExtraFlags(args, primaryBuilderNinjaGlobFile, mainNinjaFile)
+		primaryBuilderArgs = append(primaryBuilderArgs, args.TopFile)
+
+		invocations = []PrimaryBuilderInvocation{{
+			Inputs:  []string{args.TopFile},
+			Outputs: []string{mainNinjaFile},
+			Args:    primaryBuilderArgs,
+		}}
+	}
+
 	bootstrapConfig := &Config{
 		stage: stage,
 
-		topLevelBlueprintsFile: args.TopFile,
-		globFile:               primaryBuilderNinjaGlobFile,
-		runGoTests:             args.RunGoTests,
-		useValidations:         args.UseValidations,
-		primaryBuilderInvocations: []PrimaryBuilderInvocation{
-			{
-				Inputs:  []string{args.TopFile},
-				Outputs: []string{mainNinjaFile},
-				Args:    primaryBuilderExtraFlags(args, primaryBuilderNinjaGlobFile, mainNinjaFile),
-			},
-		},
+		topLevelBlueprintsFile:    args.TopFile,
+		globFile:                  primaryBuilderNinjaGlobFile,
+		runGoTests:                args.RunGoTests,
+		useValidations:            args.UseValidations,
+		primaryBuilderInvocations: invocations,
 	}
 
 	ctx.RegisterBottomUpMutator("bootstrap_plugin_deps", pluginDeps)
@@ -243,12 +239,12 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}, extraNi
 		if err != nil {
 			fatalErrors([]error{err})
 		}
-		return
+		return nil
 	}
 
 	if c, ok := config.(ConfigStopBefore); ok {
 		if c.StopBefore() == StopBeforePrepareBuildActions {
-			return
+			return deps
 		}
 	}
 
@@ -260,7 +256,7 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}, extraNi
 
 	if c, ok := config.(ConfigStopBefore); ok {
 		if c.StopBefore() == StopBeforeWriteNinja {
-			return
+			return deps
 		}
 	}
 
@@ -295,13 +291,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}, extraNi
 		err = ioutil.WriteFile(absolutePath(args.GlobFile), buffer, outFilePermissions)
 		if err != nil {
 			fatalf("error writing %s: %s", args.GlobFile, err)
-		}
-	}
-
-	if args.DepFile != "" {
-		err := deptools.WriteDepFile(absolutePath(args.DepFile), args.OutFile, deps)
-		if err != nil {
-			fatalf("error writing depfile: %s", err)
 		}
 	}
 
@@ -340,6 +329,8 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}, extraNi
 		defer f.Close()
 		pprof.WriteHeapProfile(f)
 	}
+
+	return deps
 }
 
 func fatalf(format string, args ...interface{}) {
