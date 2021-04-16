@@ -45,7 +45,8 @@ var (
 	// and writes it to $out if it has changed, and writes the directories to $out.d
 	GlobRule = pctx.StaticRule("GlobRule",
 		blueprint.RuleParams{
-			Command:     fmt.Sprintf(`%s -o $out $excludes "$glob"`, globCmd),
+			Command: fmt.Sprintf(`%s -o $out -v %d $excludes "$glob"`,
+				globCmd, pathtools.BPGlobArgumentVersion),
 			CommandDeps: []string{globCmd},
 			Description: "glob $glob",
 
@@ -121,7 +122,7 @@ func globSingletonFactory(ctx *blueprint.Context) func() blueprint.Singleton {
 
 func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	for _, g := range s.globLister() {
-		fileListFile := filepath.Join(ctx.Config().(BootstrapConfig).BuildDir(), ".glob", g.Name)
+		fileListFile := g.FileListFile(ctx.Config().(BootstrapConfig).BuildDir())
 
 		if s.writeRule {
 			// We need to write the file list here so that it has an older modified date
