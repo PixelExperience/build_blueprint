@@ -181,6 +181,10 @@ func (matchString) StopTestLog() error {
 	panic("shouldn't get here")
 }
 
+func (matchString) SetPanicOnExit0(bool) {
+	panic("shouldn't get here")
+}
+
 func main() {
 {{if .MainStartTakesInterface}}
 	m := testing.MainStart(matchString{}, t, nil, e)
