@@ -297,13 +297,20 @@ type BaseModuleContext interface {
 	// OtherModuleDependencyVariantExists returns true if a module with the
 	// specified name and variant exists. The variant must match the given
 	// variations. It must also match all the non-local variations of the current
-	// module. In other words, it checks for the module AddVariationDependencies
+	// module. In other words, it checks for the module that AddVariationDependencies
 	// would add a dependency on with the same arguments.
 	OtherModuleDependencyVariantExists(variations []Variation, name string) bool
 
+	// OtherModuleFarDependencyVariantExists returns true if a module with the
+	// specified name and variant exists. The variant must match the given
+	// variations, but not the non-local variations of the current module. In
+	// other words, it checks for the module that AddFarVariationDependencies
+	// would add a dependency on with the same arguments.
+	OtherModuleFarDependencyVariantExists(variations []Variation, name string) bool
+
 	// OtherModuleReverseDependencyVariantExists returns true if a module with the
 	// specified name exists with the same variations as the current module. In
-	// other words, it checks for the module AddReverseDependency would add a
+	// other words, it checks for the module that AddReverseDependency would add a
 	// dependency on with the same argument.
 	OtherModuleReverseDependencyVariantExists(name string) bool
 
@@ -536,6 +543,15 @@ func (m *baseModuleContext) OtherModuleDependencyVariantExists(variations []Vari
 		return false
 	}
 	found, _ := findVariant(m.module, possibleDeps, variations, false, false)
+	return found != nil
+}
+
+func (m *baseModuleContext) OtherModuleFarDependencyVariantExists(variations []Variation, name string) bool {
+	possibleDeps := m.context.moduleGroupFromName(name, m.module.namespace())
+	if possibleDeps == nil {
+		return false
+	}
+	found, _ := findVariant(m.module, possibleDeps, variations, true, false)
 	return found != nil
 }
 
