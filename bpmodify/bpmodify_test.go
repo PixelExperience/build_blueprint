@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/google/blueprint/parser"
+	"github.com/google/blueprint/proptools"
 )
 
 var testCases = []struct {
@@ -28,6 +29,7 @@ var testCases = []struct {
 	property  string
 	addSet    string
 	removeSet string
+	setString *string
 }{
 	{
 		name: "add",
@@ -249,6 +251,39 @@ var testCases = []struct {
 		property: "deps",
 		addSet:   "bar-v10-bar",
 	},
+	{
+		name: "set string",
+		input: `
+			cc_foo {
+				name: "foo",
+			}
+		`,
+		output: `
+			cc_foo {
+				name: "foo",
+				foo: "bar",
+			}
+		`,
+		property:  "foo",
+		setString: proptools.StringPtr("bar"),
+	},
+	{
+		name: "set existing string",
+		input: `
+			cc_foo {
+				name: "foo",
+				foo: "baz",
+			}
+		`,
+		output: `
+			cc_foo {
+				name: "foo",
+				foo: "bar",
+			}
+		`,
+		property:  "foo",
+		setString: proptools.StringPtr("bar"),
+	},
 }
 
 func simplifyModuleDefinition(def string) string {
@@ -265,6 +300,7 @@ func TestProcessModule(t *testing.T) {
 			targetedProperty.Set(testCase.property)
 			addIdents.Set(testCase.addSet)
 			removeIdents.Set(testCase.removeSet)
+			setString = testCase.setString
 
 			inAst, errs := parser.ParseAndEval("", strings.NewReader(testCase.input), parser.NewScope(nil))
 			if len(errs) > 0 {
