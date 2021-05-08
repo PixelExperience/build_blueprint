@@ -30,6 +30,8 @@ var (
 	targetedProperty = new(qualifiedProperty)
 	addIdents        = new(identSet)
 	removeIdents     = new(identSet)
+
+	setString *string
 )
 
 func init() {
@@ -38,6 +40,7 @@ func init() {
 	flag.Var(targetedProperty, "property", "fully qualified `name` of property to modify (default \"deps\")")
 	flag.Var(addIdents, "a", "comma or whitespace separated list of identifiers to add")
 	flag.Var(removeIdents, "r", "comma or whitespace separated list of identifiers to remove")
+	flag.Var(stringPtrFlag{&setString}, "str", "set a string property")
 	flag.Usage = usage
 }
 
@@ -147,14 +150,18 @@ func processModule(module *parser.Module, moduleName string,
 		return false, []error{err}
 	}
 	if prop == nil {
-		if len(addIdents.idents) == 0 {
+		if len(addIdents.idents) > 0 {
+			// We are adding something to a non-existing list prop, so we need to create it first.
+			prop, modified, err = createRecursiveProperty(module, targetedProperty.name(), targetedProperty.prefixes(), &parser.List{})
+		} else if setString != nil {
+			// We setting a non-existent string property, so we need to create it first.
+			prop, modified, err = createRecursiveProperty(module, targetedProperty.name(), targetedProperty.prefixes(), &parser.String{})
+		} else {
 			// We cannot find an existing prop, and we aren't adding anything to the prop,
 			// which means we must be removing something from a non-existing prop,
 			// which means this is a noop.
 			return false, nil
 		}
-		// Else we are adding something to a non-existing prop, so we need to create it first.
-		prop, modified, err = createRecursiveProperty(module, targetedProperty.name(), targetedProperty.prefixes())
 		if err != nil {
 			// Here should be unreachable, but still handle it for completeness.
 			return false, []error{err}
@@ -166,16 +173,18 @@ func processModule(module *parser.Module, moduleName string,
 }
 
 func getRecursiveProperty(module *parser.Module, name string, prefixes []string) (prop *parser.Property, err error) {
-	prop, _, err = getOrCreateRecursiveProperty(module, name, prefixes, false)
+	prop, _, err = getOrCreateRecursiveProperty(module, name, prefixes, nil)
 	return prop, err
 }
 
-func createRecursiveProperty(module *parser.Module, name string, prefixes []string) (prop *parser.Property, modified bool, err error) {
-	return getOrCreateRecursiveProperty(module, name, prefixes, true)
+func createRecursiveProperty(module *parser.Module, name string, prefixes []string,
+	empty parser.Expression) (prop *parser.Property, modified bool, err error) {
+
+	return getOrCreateRecursiveProperty(module, name, prefixes, empty)
 }
 
 func getOrCreateRecursiveProperty(module *parser.Module, name string, prefixes []string,
-	createIfNotFound bool) (prop *parser.Property, modified bool, err error) {
+	empty parser.Expression) (prop *parser.Property, modified bool, err error) {
 	m := &module.Map
 	for i, prefix := range prefixes {
 		if prop, found := m.GetProperty(prefix); found {
@@ -187,7 +196,7 @@ func getOrCreateRecursiveProperty(module *parser.Module, name string, prefixes [
 				return nil, false, fmt.Errorf("Expected property %q to be a map, found %s",
 					strings.Join(prefixes[:i+1], "."), prop.Value.Type())
 			}
-		} else if createIfNotFound {
+		} else if empty != nil {
 			mm := &parser.Map{}
 			m.Properties = append(m.Properties, &parser.Property{Name: prefix, Value: mm})
 			m = mm
@@ -201,8 +210,8 @@ func getOrCreateRecursiveProperty(module *parser.Module, name string, prefixes [
 	if prop, found := m.GetProperty(name); found {
 		// We've found a property in the AST, which must mean we didn't modify the AST.
 		return prop, false, nil
-	} else if createIfNotFound {
-		prop = &parser.Property{Name: name, Value: &parser.List{}}
+	} else if empty != nil {
+		prop = &parser.Property{Name: name, Value: empty}
 		m.Properties = append(m.Properties, prop)
 		return prop, true, nil
 	} else {
@@ -222,26 +231,37 @@ func processParameter(value parser.Expression, paramName, moduleName string,
 			paramName, moduleName)}
 	}
 
-	list, ok := value.(*parser.List)
-	if !ok {
-		return false, []error{fmt.Errorf("expected parameter %s in module %s to be list, found %s",
-			paramName, moduleName, value.Type().String())}
-	}
+	if len(addIdents.idents) > 0 || len(removeIdents.idents) > 0 {
+		list, ok := value.(*parser.List)
+		if !ok {
+			return false, []error{fmt.Errorf("expected parameter %s in module %s to be list, found %s",
+				paramName, moduleName, value.Type().String())}
+		}
 
-	wasSorted := parser.ListIsSorted(list)
+		wasSorted := parser.ListIsSorted(list)
 
-	for _, a := range addIdents.idents {
-		m := parser.AddStringToList(list, a)
-		modified = modified || m
-	}
+		for _, a := range addIdents.idents {
+			m := parser.AddStringToList(list, a)
+			modified = modified || m
+		}
 
-	for _, r := range removeIdents.idents {
-		m := parser.RemoveStringFromList(list, r)
-		modified = modified || m
-	}
+		for _, r := range removeIdents.idents {
+			m := parser.RemoveStringFromList(list, r)
+			modified = modified || m
+		}
 
-	if (wasSorted || *sortLists) && modified {
-		parser.SortList(file, list)
+		if (wasSorted || *sortLists) && modified {
+			parser.SortList(file, list)
+		}
+	} else if setString != nil {
+		str, ok := value.(*parser.String)
+		if !ok {
+			return false, []error{fmt.Errorf("expected parameter %s in module %s to be string, found %s",
+				paramName, moduleName, value.Type().String())}
+		}
+
+		str.Value = *setString
+		modified = true
 	}
 
 	return modified, nil
@@ -304,8 +324,8 @@ func main() {
 		return
 	}
 
-	if len(addIdents.idents) == 0 && len(removeIdents.idents) == 0 {
-		report(fmt.Errorf("-a or -r parameter is required"))
+	if len(addIdents.idents) == 0 && len(removeIdents.idents) == 0 && setString == nil {
+		report(fmt.Errorf("-a, -r or -str parameter is required"))
 		return
 	}
 
@@ -350,6 +370,22 @@ func diff(b1, b2 []byte) (data []byte, err error) {
 	}
 	return
 
+}
+
+type stringPtrFlag struct {
+	s **string
+}
+
+func (f stringPtrFlag) Set(s string) error {
+	*f.s = &s
+	return nil
+}
+
+func (f stringPtrFlag) String() string {
+	if f.s == nil || *f.s == nil {
+		return ""
+	}
+	return **f.s
 }
 
 type identSet struct {
