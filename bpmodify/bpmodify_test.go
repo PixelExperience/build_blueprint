@@ -19,234 +19,270 @@ import (
 	"testing"
 
 	"github.com/google/blueprint/parser"
+	"github.com/google/blueprint/proptools"
 )
 
 var testCases = []struct {
+	name      string
 	input     string
 	output    string
 	property  string
 	addSet    string
 	removeSet string
+	setString *string
 }{
 	{
-		`
-		cc_foo {
-			name: "foo",
-		}
+		name: "add",
+		input: `
+			cc_foo {
+				name: "foo",
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			deps: ["bar"],
-		}
+		output: `
+			cc_foo {
+				name: "foo",
+				deps: ["bar"],
+			}
 		`,
-		"deps",
-		"bar",
-		"",
+		property: "deps",
+		addSet:   "bar",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-			deps: ["bar"],
-		}
+		name: "remove",
+		input: `
+			cc_foo {
+				name: "foo",
+				deps: ["bar"],
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			deps: [],
-		}
+		output: `
+			cc_foo {
+				name: "foo",
+				deps: [],
+			}
 		`,
-		"deps",
-		"",
-		"bar",
+		property:  "deps",
+		removeSet: "bar",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-		}
+		name: "nested add",
+		input: `
+			cc_foo {
+				name: "foo",
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			arch: {
-				arm: {
-					deps: [
-						"dep2",
-						"nested_dep",],
+		output: `
+			cc_foo {
+				name: "foo",
+				arch: {
+					arm: {
+						deps: [
+							"dep2",
+							"nested_dep",],
+					},
 				},
-			},
-		}
+			}
 		`,
-		"arch.arm.deps",
-		"nested_dep,dep2",
-		"",
+		property: "arch.arm.deps",
+		addSet:   "nested_dep,dep2",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-			arch: {
-				arm: {
-					deps: [
-						"dep2",
-						"nested_dep",
-					],
+		name: "nested remove",
+		input: `
+			cc_foo {
+				name: "foo",
+				arch: {
+					arm: {
+						deps: [
+							"dep2",
+							"nested_dep",
+						],
+					},
 				},
-			},
-		}
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			arch: {
-				arm: {
-					deps: [
-					],
+		output: `
+			cc_foo {
+				name: "foo",
+				arch: {
+					arm: {
+						deps: [
+						],
+					},
 				},
-			},
-		}
+			}
 		`,
-		"arch.arm.deps",
-		"",
-		"nested_dep,dep2",
+		property:  "arch.arm.deps",
+		removeSet: "nested_dep,dep2",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-			arch: {
-				arm: {
-					deps: [
-						"nested_dep",
-						"dep2",
-					],
+		name: "add existing",
+		input: `
+			cc_foo {
+				name: "foo",
+				arch: {
+					arm: {
+						deps: [
+							"nested_dep",
+							"dep2",
+						],
+					},
 				},
-			},
-		}
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			arch: {
-				arm: {
-					deps: [
-						"nested_dep",
-						"dep2",
-					],
+		output: `
+			cc_foo {
+				name: "foo",
+				arch: {
+					arm: {
+						deps: [
+							"nested_dep",
+							"dep2",
+						],
+					},
 				},
-			},
-		}
+			}
 		`,
-		"arch.arm.deps",
-		"dep2,dep2",
-		"",
+		property: "arch.arm.deps",
+		addSet:   "dep2,dep2",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-			arch: {
-				arm: {
-					deps: [
-						"nested_dep",
-						"dep2",
-					],
+		name: "remove missing",
+		input: `
+			cc_foo {
+				name: "foo",
+				arch: {
+					arm: {
+						deps: [
+							"nested_dep",
+							"dep2",
+						],
+					},
 				},
-			},
-		}
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			arch: {
-				arm: {
-					deps: [
-						"nested_dep",
-						"dep2",
-					],
+		output: `
+			cc_foo {
+				name: "foo",
+				arch: {
+					arm: {
+						deps: [
+							"nested_dep",
+							"dep2",
+						],
+					},
 				},
-			},
-		}
+			}
 		`,
-		"arch.arm.deps",
-		"",
-		"dep3,dep4",
+		property:  "arch.arm.deps",
+		removeSet: "dep3,dep4",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-		}
+		name: "remove non existent",
+		input: `
+			cc_foo {
+				name: "foo",
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-		}
+		output: `
+			cc_foo {
+				name: "foo",
+			}
 		`,
-		"deps",
-		"",
-		"bar",
+		property:  "deps",
+		removeSet: "bar",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-			arch: {},
-		}
+		name: "remove non existent nested",
+		input: `
+			cc_foo {
+				name: "foo",
+				arch: {},
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			arch: {},
-		}
+		output: `
+			cc_foo {
+				name: "foo",
+				arch: {},
+			}
 		`,
-		"arch.arm.deps",
-		"",
-		"dep3,dep4",
+		property:  "arch.arm.deps",
+		removeSet: "dep3,dep4",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-			versions: ["1", "2"],
-		}
+		name: "add numeric sorted",
+		input: `
+			cc_foo {
+				name: "foo",
+				versions: ["1", "2"],
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			versions: [
-				"1",
-				"2",
-				"10",
-			],
-		}
+		output: `
+			cc_foo {
+				name: "foo",
+				versions: [
+					"1",
+					"2",
+					"10",
+				],
+			}
 		`,
-		"versions",
-		"10",
-		"",
+		property: "versions",
+		addSet:   "10",
 	},
 	{
-		`
-		cc_foo {
-			name: "foo",
-			deps: ["bar-v1-bar", "bar-v2-bar"],
-		}
+		name: "add mixed sorted",
+		input: `
+			cc_foo {
+				name: "foo",
+				deps: ["bar-v1-bar", "bar-v2-bar"],
+			}
 		`,
-		`
-		cc_foo {
-			name: "foo",
-			deps: [
-				"bar-v1-bar",
-				"bar-v2-bar",
-				"bar-v10-bar",
-			],
-		}
+		output: `
+			cc_foo {
+				name: "foo",
+				deps: [
+					"bar-v1-bar",
+					"bar-v2-bar",
+					"bar-v10-bar",
+				],
+			}
 		`,
-		"deps",
-		"bar-v10-bar",
-		"",
+		property: "deps",
+		addSet:   "bar-v10-bar",
+	},
+	{
+		name: "set string",
+		input: `
+			cc_foo {
+				name: "foo",
+			}
+		`,
+		output: `
+			cc_foo {
+				name: "foo",
+				foo: "bar",
+			}
+		`,
+		property:  "foo",
+		setString: proptools.StringPtr("bar"),
+	},
+	{
+		name: "set existing string",
+		input: `
+			cc_foo {
+				name: "foo",
+				foo: "baz",
+			}
+		`,
+		output: `
+			cc_foo {
+				name: "foo",
+				foo: "bar",
+			}
+		`,
+		property:  "foo",
+		setString: proptools.StringPtr("bar"),
 	},
 }
 
@@ -260,42 +296,43 @@ func simplifyModuleDefinition(def string) string {
 
 func TestProcessModule(t *testing.T) {
 	for i, testCase := range testCases {
-		targetedProperty.Set(testCase.property)
-		addIdents.Set(testCase.addSet)
-		removeIdents.Set(testCase.removeSet)
+		t.Run(testCase.name, func(t *testing.T) {
+			targetedProperty.Set(testCase.property)
+			addIdents.Set(testCase.addSet)
+			removeIdents.Set(testCase.removeSet)
+			setString = testCase.setString
 
-		inAst, errs := parser.ParseAndEval("", strings.NewReader(testCase.input), parser.NewScope(nil))
-		if len(errs) > 0 {
-			t.Errorf("test case %d:", i)
-			for _, err := range errs {
-				t.Errorf("  %s", err)
-			}
-			t.Errorf("failed to parse:")
-			t.Errorf("%+v", testCase)
-			continue
-		}
-
-		if inModule, ok := inAst.Defs[0].(*parser.Module); !ok {
-			t.Errorf("test case %d:", i)
-			t.Errorf("  input must only contain a single module definition: %s", testCase.input)
-			continue
-		} else {
-			_, errs := processModule(inModule, "", inAst)
+			inAst, errs := parser.ParseAndEval("", strings.NewReader(testCase.input), parser.NewScope(nil))
 			if len(errs) > 0 {
-				t.Errorf("test case %d:", i)
 				for _, err := range errs {
 					t.Errorf("  %s", err)
 				}
+				t.Errorf("failed to parse:")
+				t.Errorf("%+v", testCase)
+				t.FailNow()
 			}
-			inModuleText, _ := parser.Print(inAst)
-			inModuleString := string(inModuleText)
-			if simplifyModuleDefinition(inModuleString) != simplifyModuleDefinition(testCase.output) {
-				t.Errorf("test case %d:", i)
-				t.Errorf("expected module definition:")
-				t.Errorf("  %s", testCase.output)
-				t.Errorf("actual module definition:")
-				t.Errorf("  %s", inModuleString)
+
+			if inModule, ok := inAst.Defs[0].(*parser.Module); !ok {
+				t.Fatalf("  input must only contain a single module definition: %s", testCase.input)
+			} else {
+				_, errs := processModule(inModule, "", inAst)
+				if len(errs) > 0 {
+					t.Errorf("test case %d:", i)
+					for _, err := range errs {
+						t.Errorf("  %s", err)
+					}
+				}
+				inModuleText, _ := parser.Print(inAst)
+				inModuleString := string(inModuleText)
+				if simplifyModuleDefinition(inModuleString) != simplifyModuleDefinition(testCase.output) {
+					t.Errorf("test case %d:", i)
+					t.Errorf("expected module definition:")
+					t.Errorf("  %s", testCase.output)
+					t.Errorf("actual module definition:")
+					t.Errorf("  %s", inModuleString)
+				}
 			}
-		}
+		})
 	}
+
 }
