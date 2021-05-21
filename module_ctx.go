@@ -1339,7 +1339,7 @@ func AddLoadHook(module Module, hook LoadHook) {
 }
 
 func runAndRemoveLoadHooks(ctx *Context, config interface{}, module *moduleInfo,
-	scopedModuleFactories *map[string]ModuleFactory) (newModules []*moduleInfo, errs []error) {
+	scopedModuleFactories *map[string]ModuleFactory) (newModules []*moduleInfo, deps []string, errs []error) {
 
 	if v, exists := pendingHooks.Load(module.logicModule); exists {
 		hooks := v.(*[]LoadHook)
@@ -1355,14 +1355,15 @@ func runAndRemoveLoadHooks(ctx *Context, config interface{}, module *moduleInfo,
 		for _, hook := range *hooks {
 			hook(mctx)
 			newModules = append(newModules, mctx.newModules...)
+			deps = append(deps, mctx.ninjaFileDeps...)
 			errs = append(errs, mctx.errs...)
 		}
 		pendingHooks.Delete(module.logicModule)
 
-		return newModules, errs
+		return newModules, deps, errs
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
 // Check the syntax of a generated blueprint file.
