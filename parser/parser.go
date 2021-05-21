@@ -293,6 +293,37 @@ func (p *parser) parsePropertyList(isModule, compat bool) (properties []*Propert
 	return
 }
 
+func (p *parser) parseMapItemList() []*MapItem {
+	var items []*MapItem
+	// this is a map, not a struct, we only know we're at the end if we hit a '}'
+	for p.tok != '}' {
+		items = append(items, p.parseMapItem())
+
+		if p.tok != ',' {
+			// There was no comma, so the list is done.
+			break
+		}
+		p.accept(',')
+	}
+	return items
+}
+
+func (p *parser) parseMapItem() *MapItem {
+	keyExpression := p.parseExpression()
+	if keyExpression.Type() != StringType {
+		p.errorf("only strings are supported as map keys: %s (%s)", keyExpression.Type(), keyExpression.String())
+	}
+	key := keyExpression.(*String)
+	p.accept(':')
+	pos := p.scanner.Position
+	value := p.parseExpression()
+	return &MapItem{
+		ColonPos: pos,
+		Key:      key,
+		Value:    value,
+	}
+}
+
 func (p *parser) parseProperty(isModule, compat bool) (property *Property) {
 	property = new(Property)
 
@@ -575,7 +606,15 @@ func (p *parser) parseMapValue() *Map {
 		return nil
 	}
 
-	properties := p.parsePropertyList(false, false)
+	var properties []*Property
+	var mapItems []*MapItem
+	// if the next item is an identifier, this is a property
+	if p.tok == scanner.Ident {
+		properties = p.parsePropertyList(false, false)
+	} else {
+		// otherwise, we assume that this is a map
+		mapItems = p.parseMapItemList()
+	}
 
 	rBracePos := p.scanner.Position
 	p.accept('}')
@@ -584,6 +623,7 @@ func (p *parser) parseMapValue() *Map {
 		LBracePos:  lBracePos,
 		RBracePos:  rBracePos,
 		Properties: properties,
+		MapItems:   mapItems,
 	}
 }
 
