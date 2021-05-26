@@ -367,6 +367,16 @@ func (g *goPackage) GenerateBuildActions(ctx blueprint.ModuleContext) {
 			testSrcs, g.config.useValidations)
 	}
 
+	// Don't build for test-only packages
+	if len(srcs) == 0 && len(genSrcs) == 0 {
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:     touch,
+			Outputs:  []string{g.archiveFile},
+			Optional: true,
+		})
+		return
+	}
+
 	buildGoPackage(ctx, g.pkgRoot, g.properties.PkgPath, g.archiveFile,
 		srcs, genSrcs)
 }
@@ -686,16 +696,25 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	var primaryBuilders []*goBinary
 	// blueprintTools contains blueprint go binaries that will be built in StageMain
 	var blueprintTools []string
-	ctx.VisitAllModulesIf(isBootstrapBinaryModule,
+	// blueprintGoPackages contains all blueprint go packages that can be built in StageMain
+	var blueprintGoPackages []string
+	ctx.VisitAllModulesIf(IsBootstrapModule,
 		func(module blueprint.Module) {
 			if ctx.PrimaryModule(module) == module {
-				binaryModule := module.(*goBinary)
-
-				if binaryModule.properties.Tool_dir {
-					blueprintTools = append(blueprintTools, binaryModule.InstallPath())
+				if binaryModule, ok := module.(*goBinary); ok {
+					if binaryModule.properties.Tool_dir {
+						blueprintTools = append(blueprintTools, binaryModule.InstallPath())
+					}
+					if binaryModule.properties.PrimaryBuilder {
+						primaryBuilders = append(primaryBuilders, binaryModule)
+					}
 				}
-				if binaryModule.properties.PrimaryBuilder {
-					primaryBuilders = append(primaryBuilders, binaryModule)
+
+				if packageModule, ok := module.(*goPackage); ok {
+					blueprintGoPackages = append(blueprintGoPackages,
+						packageModule.GoPackageTarget())
+					blueprintGoPackages = append(blueprintGoPackages,
+						packageModule.GoTestTargets()...)
 				}
 			}
 		})
@@ -787,6 +806,14 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 			Rule:    blueprint.Phony,
 			Outputs: []string{"blueprint_tools"},
 			Inputs:  blueprintTools,
+		})
+
+		// Add a phony target for running go tests
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:     blueprint.Phony,
+			Outputs:  []string{"blueprint_go_packages"},
+			Inputs:   blueprintGoPackages,
+			Optional: true,
 		})
 	}
 }
