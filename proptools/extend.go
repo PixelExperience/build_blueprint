@@ -342,7 +342,7 @@ func extendPropertiesRecursive(dstValues []reflect.Value, srcValue reflect.Value
 				// Recursively extend the struct's fields.
 				recurse = append(recurse, dstFieldValue)
 				continue
-			case reflect.Bool, reflect.String, reflect.Slice:
+			case reflect.Bool, reflect.String, reflect.Slice, reflect.Map:
 				if srcFieldValue.Type() != dstFieldValue.Type() {
 					return extendPropertyErrorf(propertyName, "mismatched types %s and %s",
 						dstFieldValue.Type(), srcFieldValue.Type())
@@ -443,6 +443,34 @@ func ExtendBasicType(dstFieldValue, srcFieldValue reflect.Value, order Order) {
 			newSlice = reflect.AppendSlice(newSlice, srcFieldValue)
 		}
 		dstFieldValue.Set(newSlice)
+	case reflect.Map:
+		if srcFieldValue.IsNil() {
+			break
+		}
+		var mapValue reflect.Value
+		// for append/prepend, maintain keys from original value
+		// for replace, replace entire map
+		if order == Replace || dstFieldValue.IsNil() {
+			mapValue = srcFieldValue
+		} else {
+			mapValue = dstFieldValue
+
+			iter := srcFieldValue.MapRange()
+			for iter.Next() {
+				dstValue := dstFieldValue.MapIndex(iter.Key())
+				if prepend {
+					// if the key exists in the map, keep the original value.
+					if !dstValue.IsValid() {
+						// otherwise, add the new value
+						mapValue.SetMapIndex(iter.Key(), iter.Value())
+					}
+				} else {
+					// For append, replace the original value.
+					mapValue.SetMapIndex(iter.Key(), iter.Value())
+				}
+			}
+		}
+		dstFieldValue.Set(mapValue)
 	case reflect.Ptr:
 		if srcFieldValue.IsNil() {
 			break
