@@ -120,20 +120,6 @@ func PrimaryBuilderExtraFlags(args Args, globFile, mainNinjaFile string) []strin
 	return result
 }
 
-func writeEmptyGlobFile(path string) {
-	err := os.MkdirAll(filepath.Dir(path), 0777)
-	if err != nil {
-		fatalf("Failed to create parent directories of empty ninja glob file '%s': %s", path, err)
-	}
-
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		err = ioutil.WriteFile(path, nil, 0666)
-		if err != nil {
-			fatalf("Failed to create empty ninja glob file '%s': %s", path, err)
-		}
-	}
-}
-
 // Returns the list of dependencies the emitted Ninja files has. These can be
 // written to the .d file for the output so that it is correctly rebuilt when
 // needed in case Blueprint is itself invoked from Ninja
@@ -190,8 +176,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 
 	primaryBuilderNinjaGlobFile := absolutePath(filepath.Join(args.BuildDir, bootstrapSubDir, "build-globs.ninja"))
 	mainNinjaFile := filepath.Join("$buildDir", "build.ninja")
-
-	writeEmptyGlobFile(primaryBuilderNinjaGlobFile)
 
 	var invocations []PrimaryBuilderInvocation
 
