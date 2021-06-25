@@ -2281,11 +2281,12 @@ type jsonDep struct {
 	Tag string
 }
 
-type jsonModule struct {
+type JsonModule struct {
 	jsonModuleName
 	Deps      []jsonDep
 	Type      string
 	Blueprint string
+	Module    map[string]interface{}
 }
 
 func toJsonVariationMap(vm variationMap) jsonVariationMap {
@@ -2300,17 +2301,33 @@ func jsonModuleNameFromModuleInfo(m *moduleInfo) *jsonModuleName {
 	}
 }
 
-func jsonModuleFromModuleInfo(m *moduleInfo) *jsonModule {
-	return &jsonModule{
+type JSONDataSupplier interface {
+	AddJSONData(d *map[string]interface{})
+}
+
+func jsonModuleFromModuleInfo(m *moduleInfo) *JsonModule {
+	result := &JsonModule{
 		jsonModuleName: *jsonModuleNameFromModuleInfo(m),
 		Deps:           make([]jsonDep, 0),
 		Type:           m.typeName,
 		Blueprint:      m.relBlueprintsFile,
+		Module:         make(map[string]interface{}),
 	}
+
+	if j, ok := m.logicModule.(JSONDataSupplier); ok {
+		j.AddJSONData(&result.Module)
+	}
+
+	for _, p := range m.providers {
+		if j, ok := p.(JSONDataSupplier); ok {
+			j.AddJSONData(&result.Module)
+		}
+	}
+	return result
 }
 
 func (c *Context) PrintJSONGraph(w io.Writer) {
-	modules := make([]*jsonModule, 0)
+	modules := make([]*JsonModule, 0)
 	for _, m := range c.modulesSorted {
 		jm := jsonModuleFromModuleInfo(m)
 		for _, d := range m.directDeps {
