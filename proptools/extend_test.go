@@ -814,6 +814,54 @@ func appendPropertiesTestCases() []appendPropertyTestCase {
 			},
 		},
 		{
+			name: "BlueprintEmbed struct",
+			dst: &struct {
+				BlueprintEmbed EmbeddedStruct
+				Nested         struct{ BlueprintEmbed EmbeddedStruct }
+			}{
+				BlueprintEmbed: EmbeddedStruct{
+					S: "string1",
+					I: Int64Ptr(55),
+				},
+				Nested: struct{ BlueprintEmbed EmbeddedStruct }{
+					BlueprintEmbed: EmbeddedStruct{
+						S: "string2",
+						I: Int64Ptr(-4),
+					},
+				},
+			},
+			src: &struct {
+				BlueprintEmbed EmbeddedStruct
+				Nested         struct{ BlueprintEmbed EmbeddedStruct }
+			}{
+				BlueprintEmbed: EmbeddedStruct{
+					S: "string3",
+					I: Int64Ptr(66),
+				},
+				Nested: struct{ BlueprintEmbed EmbeddedStruct }{
+					BlueprintEmbed: EmbeddedStruct{
+						S: "string4",
+						I: Int64Ptr(-8),
+					},
+				},
+			},
+			out: &struct {
+				BlueprintEmbed EmbeddedStruct
+				Nested         struct{ BlueprintEmbed EmbeddedStruct }
+			}{
+				BlueprintEmbed: EmbeddedStruct{
+					S: "string1string3",
+					I: Int64Ptr(66),
+				},
+				Nested: struct{ BlueprintEmbed EmbeddedStruct }{
+					BlueprintEmbed: EmbeddedStruct{
+						S: "string2string4",
+						I: Int64Ptr(-8),
+					},
+				},
+			},
+		},
+		{
 			name: "Anonymous interface",
 			dst: &struct {
 				EmbeddedInterface
@@ -1472,6 +1520,130 @@ func appendMatchingPropertiesTestCases() []appendMatchingPropertiesTestCase {
 					S: struct{ S, B string }{
 						S: "string2",
 						B: "string3",
+					},
+				},
+			},
+		},
+		{
+			name: "Append through embedded struct",
+			dst: []interface{}{
+				&struct{ B string }{},
+				&struct{ EmbeddedStruct }{
+					EmbeddedStruct: EmbeddedStruct{
+						S: "string1",
+					},
+				},
+			},
+			src: &struct{ S string }{
+				S: "string2",
+			},
+			out: []interface{}{
+				&struct{ B string }{},
+				&struct{ EmbeddedStruct }{
+					EmbeddedStruct: EmbeddedStruct{
+						S: "string1string2",
+					},
+				},
+			},
+		},
+		{
+			name: "Append through BlueprintEmbed struct",
+			dst: []interface{}{
+				&struct{ B string }{},
+				&struct{ BlueprintEmbed EmbeddedStruct }{
+					BlueprintEmbed: EmbeddedStruct{
+						S: "string1",
+					},
+				},
+			},
+			src: &struct{ S string }{
+				S: "string2",
+			},
+			out: []interface{}{
+				&struct{ B string }{},
+				&struct{ BlueprintEmbed EmbeddedStruct }{
+					BlueprintEmbed: EmbeddedStruct{
+						S: "string1string2",
+					},
+				},
+			},
+		},
+		{
+			name: "Append through embedded pointer to struct",
+			dst: []interface{}{
+				&struct{ B string }{},
+				&struct{ *EmbeddedStruct }{
+					EmbeddedStruct: &EmbeddedStruct{
+						S: "string1",
+					},
+				},
+			},
+			src: &struct{ S string }{
+				S: "string2",
+			},
+			out: []interface{}{
+				&struct{ B string }{},
+				&struct{ *EmbeddedStruct }{
+					EmbeddedStruct: &EmbeddedStruct{
+						S: "string1string2",
+					},
+				},
+			},
+		},
+		{
+			name: "Append through BlueprintEmbed pointer to struct",
+			dst: []interface{}{
+				&struct{ B string }{},
+				&struct{ BlueprintEmbed *EmbeddedStruct }{
+					BlueprintEmbed: &EmbeddedStruct{
+						S: "string1",
+					},
+				},
+			},
+			src: &struct{ S string }{
+				S: "string2",
+			},
+			out: []interface{}{
+				&struct{ B string }{},
+				&struct{ BlueprintEmbed *EmbeddedStruct }{
+					BlueprintEmbed: &EmbeddedStruct{
+						S: "string1string2",
+					},
+				},
+			},
+		},
+		{
+			name: "Append through embedded nil pointer to struct",
+			dst: []interface{}{
+				&struct{ B string }{},
+				&struct{ *EmbeddedStruct }{},
+			},
+			src: &struct{ S string }{
+				S: "string2",
+			},
+			out: []interface{}{
+				&struct{ B string }{},
+				&struct{ *EmbeddedStruct }{
+					EmbeddedStruct: &EmbeddedStruct{
+						S: "string2",
+					},
+				},
+			},
+		},
+		{
+			name: "Append through BlueprintEmbed nil pointer to struct",
+			dst: []interface{}{
+				&struct{ B string }{},
+				&struct{ BlueprintEmbed *EmbeddedStruct }{},
+			},
+			src: &struct{ S string }{
+				S: "string2",
+			},
+			out: []interface{}{
+				&struct{ B string }{},
+				&struct{ BlueprintEmbed *EmbeddedStruct }{
+					BlueprintEmbed: &EmbeddedStruct{
+						S: "string2",
 					},
 				},
 			},
