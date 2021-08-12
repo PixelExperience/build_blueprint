@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -148,15 +149,15 @@ func joinWithPrefixAndQuote(strs []string, prefix string) string {
 // re-evaluate them whenever the contents of the searched directories change, and retrigger the
 // primary builder if the results change.
 type globSingleton struct {
-	config     *Config
+	stage      Stage
 	globLister func() pathtools.MultipleGlobResults
 	writeRule  bool
 }
 
-func globSingletonFactory(config *Config, ctx *blueprint.Context) func() blueprint.Singleton {
+func globSingletonFactory(stage Stage, ctx *blueprint.Context) func() blueprint.Singleton {
 	return func() blueprint.Singleton {
 		return &globSingleton{
-			config:     config,
+			stage:      stage,
 			globLister: ctx.Globs,
 		}
 	}
@@ -173,7 +174,7 @@ func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 
 	// The directory for the intermediates needs to be different for bootstrap and the primary
 	// builder.
-	globsDir := globsDir(ctx.Config().(BootstrapConfig), s.config.stage)
+	globsDir := globsDir(ctx.Config().(BootstrapConfig), s.stage)
 
 	for i, globs := range globBuckets {
 		fileListFile := filepath.Join(globsDir, strconv.Itoa(i))
@@ -205,13 +206,26 @@ func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	}
 }
 
-func generateGlobNinjaFile(bootstrapConfig *Config, config interface{},
+func WriteBuildGlobsNinjaFile(stage Stage, ctx *blueprint.Context, args Args, config interface{}) {
+	buffer, errs := generateGlobNinjaFile(stage, config, ctx.Globs)
+	if len(errs) > 0 {
+		fatalErrors(errs)
+	}
+
+	const outFilePermissions = 0666
+	err := ioutil.WriteFile(absolutePath(args.GlobFile), buffer, outFilePermissions)
+	if err != nil {
+		fatalf("error writing %s: %s", args.GlobFile, err)
+	}
+}
+
+func generateGlobNinjaFile(stage Stage, config interface{},
 	globLister func() pathtools.MultipleGlobResults) ([]byte, []error) {
 
 	ctx := blueprint.NewContext()
 	ctx.RegisterSingletonType("glob", func() blueprint.Singleton {
 		return &globSingleton{
-			config:     bootstrapConfig,
+			stage:      stage,
 			globLister: globLister,
 			writeRule:  true,
 		}
