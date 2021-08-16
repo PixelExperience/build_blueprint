@@ -68,7 +68,6 @@ func init() {
 	flag.StringVar(&CmdlineArgs.BuildDir, "b", ".", "the build output directory")
 	flag.StringVar(&CmdlineArgs.NinjaBuildDir, "n", "", "the ninja builddir directory")
 	flag.StringVar(&CmdlineArgs.DepFile, "d", "", "the dependency file to output")
-	flag.StringVar(&CmdlineArgs.DocFile, "docs", "", "build documentation file to output")
 	flag.StringVar(&CmdlineArgs.Cpuprofile, "cpuprofile", "", "write cpu profile to file")
 	flag.StringVar(&CmdlineArgs.TraceFile, "trace", "", "write trace to file")
 	flag.StringVar(&CmdlineArgs.Memprofile, "memprofile", "", "write memory profile to file")
@@ -225,14 +224,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 		fatalErrors(errs)
 	}
 	ninjaDeps = append(ninjaDeps, extraDeps...)
-
-	if args.DocFile != "" {
-		err := writeDocs(ctx, config, absolutePath(args.DocFile))
-		if err != nil {
-			fatalErrors([]error{err})
-		}
-		return nil
-	}
 
 	if c, ok := config.(ConfigStopBefore); ok {
 		if c.StopBefore() == StopBeforePrepareBuildActions {
