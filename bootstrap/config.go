@@ -133,7 +133,8 @@ type Config struct {
 	stage Stage
 
 	topLevelBlueprintsFile string
-	globFile               string
+	subninjas              []string
+	globListDir            string
 
 	runGoTests     bool
 	useValidations bool
