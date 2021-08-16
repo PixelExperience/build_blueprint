@@ -742,9 +742,11 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	primaryBuilderFile := filepath.Join("$BinDir", primaryBuilderName)
 	ctx.SetNinjaBuildDir(pctx, "${ninjaBuildDir}")
 
-	if s.config.stage == StagePrimary {
-		ctx.AddSubninja(s.config.globFile)
+	for _, subninja := range s.config.subninjas {
+		ctx.AddSubninja(subninja)
+	}
 
+	if s.config.stage == StagePrimary {
 		for _, i := range s.config.primaryBuilderInvocations {
 			flags := make([]string, 0)
 			flags = append(flags, primaryBuilderCmdlinePrefix...)
@@ -759,6 +761,7 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 					"builder": primaryBuilderFile,
 					"extra":   strings.Join(flags, " "),
 				},
+				Optional: true,
 			})
 		}
 	}
