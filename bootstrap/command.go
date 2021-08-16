@@ -33,7 +33,9 @@ import (
 
 type Args struct {
 	OutFile                  string
+	Subninjas                []string
 	GlobFile                 string
+	GlobListDir              string
 	DepFile                  string
 	DocFile                  string
 	Cpuprofile               string
@@ -62,6 +64,7 @@ var (
 func init() {
 	flag.StringVar(&CmdlineArgs.OutFile, "o", "build.ninja", "the Ninja file to output")
 	flag.StringVar(&CmdlineArgs.GlobFile, "globFile", "build-globs.ninja", "the Ninja file of globs to output")
+	flag.StringVar(&CmdlineArgs.GlobListDir, "globListDir", "", "the directory containing the glob list files")
 	flag.StringVar(&CmdlineArgs.BuildDir, "b", ".", "the build output directory")
 	flag.StringVar(&CmdlineArgs.NinjaBuildDir, "n", "", "the ninja builddir directory")
 	flag.StringVar(&CmdlineArgs.DepFile, "d", "", "the dependency file to output")
@@ -94,7 +97,7 @@ func Main(ctx *blueprint.Context, config interface{}, generatingPrimaryBuilder b
 	}
 }
 
-func PrimaryBuilderExtraFlags(args Args, globFile, mainNinjaFile string) []string {
+func PrimaryBuilderExtraFlags(args Args, mainNinjaFile string) []string {
 	result := make([]string, 0)
 
 	if args.RunGoTests {
@@ -102,7 +105,6 @@ func PrimaryBuilderExtraFlags(args Args, globFile, mainNinjaFile string) []strin
 	}
 
 	result = append(result, "-l", args.ModuleListFile)
-	result = append(result, "-globFile", globFile)
 	result = append(result, "-o", mainNinjaFile)
 
 	if args.EmptyNinjaFile {
@@ -174,7 +176,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 		stage = StagePrimary
 	}
 
-	primaryBuilderNinjaGlobFile := absolutePath(filepath.Join(args.BuildDir, bootstrapSubDir, "build-globs.ninja"))
 	mainNinjaFile := filepath.Join("$buildDir", "build.ninja")
 
 	var invocations []PrimaryBuilderInvocation
@@ -182,7 +183,7 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 	if args.PrimaryBuilderInvocations != nil {
 		invocations = args.PrimaryBuilderInvocations
 	} else {
-		primaryBuilderArgs := PrimaryBuilderExtraFlags(args, primaryBuilderNinjaGlobFile, mainNinjaFile)
+		primaryBuilderArgs := PrimaryBuilderExtraFlags(args, mainNinjaFile)
 		primaryBuilderArgs = append(primaryBuilderArgs, args.TopFile)
 
 		invocations = []PrimaryBuilderInvocation{{
@@ -196,7 +197,8 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 		stage: stage,
 
 		topLevelBlueprintsFile:    args.TopFile,
-		globFile:                  primaryBuilderNinjaGlobFile,
+		subninjas:                 args.Subninjas,
+		globListDir:               args.GlobListDir,
 		runGoTests:                args.RunGoTests,
 		useValidations:            args.UseValidations,
 		primaryBuilderInvocations: invocations,
@@ -208,7 +210,7 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 	ctx.RegisterModuleType("blueprint_go_binary", newGoBinaryModuleFactory(bootstrapConfig, true))
 	ctx.RegisterSingletonType("bootstrap", newSingletonFactory(bootstrapConfig))
 
-	ctx.RegisterSingletonType("glob", globSingletonFactory(stage, ctx))
+	ctx.RegisterSingletonType("glob", globSingletonFactory(bootstrapConfig.globListDir, ctx))
 
 	blueprintFiles, errs := ctx.ParseFileList(filepath.Dir(args.TopFile), filesToParse, config)
 	if len(errs) > 0 {
@@ -273,7 +275,7 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 	}
 
 	if args.GlobFile != "" {
-		WriteBuildGlobsNinjaFile(stage, ctx, args, config)
+		WriteBuildGlobsNinjaFile(args.GlobListDir, ctx, args, config)
 	}
 
 	err = ctx.WriteBuildFile(out)
