@@ -149,16 +149,16 @@ func joinWithPrefixAndQuote(strs []string, prefix string) string {
 // re-evaluate them whenever the contents of the searched directories change, and retrigger the
 // primary builder if the results change.
 type globSingleton struct {
-	stage      Stage
-	globLister func() pathtools.MultipleGlobResults
-	writeRule  bool
+	globListDir string
+	globLister  func() pathtools.MultipleGlobResults
+	writeRule   bool
 }
 
-func globSingletonFactory(stage Stage, ctx *blueprint.Context) func() blueprint.Singleton {
+func globSingletonFactory(globListDir string, ctx *blueprint.Context) func() blueprint.Singleton {
 	return func() blueprint.Singleton {
 		return &globSingleton{
-			stage:      stage,
-			globLister: ctx.Globs,
+			globListDir: globListDir,
+			globLister:  ctx.Globs,
 		}
 	}
 }
@@ -174,7 +174,7 @@ func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 
 	// The directory for the intermediates needs to be different for bootstrap and the primary
 	// builder.
-	globsDir := globsDir(ctx.Config().(BootstrapConfig), s.stage)
+	globsDir := globsDir(ctx.Config().(BootstrapConfig), s.globListDir)
 
 	for i, globs := range globBuckets {
 		fileListFile := filepath.Join(globsDir, strconv.Itoa(i))
@@ -206,8 +206,8 @@ func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	}
 }
 
-func WriteBuildGlobsNinjaFile(stage Stage, ctx *blueprint.Context, args Args, config interface{}) {
-	buffer, errs := generateGlobNinjaFile(stage, config, ctx.Globs)
+func WriteBuildGlobsNinjaFile(globListDir string, ctx *blueprint.Context, args Args, config interface{}) {
+	buffer, errs := generateGlobNinjaFile(globListDir, config, ctx.Globs)
 	if len(errs) > 0 {
 		fatalErrors(errs)
 	}
@@ -218,16 +218,15 @@ func WriteBuildGlobsNinjaFile(stage Stage, ctx *blueprint.Context, args Args, co
 		fatalf("error writing %s: %s", args.GlobFile, err)
 	}
 }
-
-func generateGlobNinjaFile(stage Stage, config interface{},
+func generateGlobNinjaFile(globListDir string, config interface{},
 	globLister func() pathtools.MultipleGlobResults) ([]byte, []error) {
 
 	ctx := blueprint.NewContext()
 	ctx.RegisterSingletonType("glob", func() blueprint.Singleton {
 		return &globSingleton{
-			stage:      stage,
-			globLister: globLister,
-			writeRule:  true,
+			globListDir: globListDir,
+			globLister:  globLister,
+			writeRule:   true,
 		}
 	})
 
@@ -258,18 +257,14 @@ func generateGlobNinjaFile(stage Stage, config interface{},
 
 // globsDir returns a different directory to store glob intermediates for the bootstrap and
 // primary builder executions.
-func globsDir(config BootstrapConfig, stage Stage) string {
+func globsDir(config BootstrapConfig, globsDir string) string {
 	buildDir := config.BuildDir()
-	if stage == StageMain {
-		return filepath.Join(buildDir, mainSubDir, "globs")
-	} else {
-		return filepath.Join(buildDir, bootstrapSubDir, "globs")
-	}
+	return filepath.Join(buildDir, bootstrapSubDir, globsDir)
 }
 
 // GlobFileListFiles returns the list of sharded glob file list files for the main stage.
-func GlobFileListFiles(config BootstrapConfig) []string {
-	globsDir := globsDir(config, StageMain)
+func GlobFileListFiles(config BootstrapConfig, globListDir string) []string {
+	globsDir := globsDir(config, globListDir)
 	var fileListFiles []string
 	for i := 0; i < numGlobBuckets; i++ {
 		fileListFiles = append(fileListFiles, filepath.Join(globsDir, strconv.Itoa(i)))
