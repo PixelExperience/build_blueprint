@@ -39,7 +39,7 @@ var (
 	// These variables are the only configuration needed by the bootstrap
 	// modules.
 	srcDirVariable = bootstrapVariable("srcDir", func(c BootstrapConfig) string {
-		return c.SrcDir()
+		return "."
 	})
 	buildDirVariable = bootstrapVariable("buildDir", func(c BootstrapConfig) string {
 		return c.BuildDir()
@@ -76,9 +76,6 @@ var (
 )
 
 type BootstrapConfig interface {
-	// The top-level directory of the source tree
-	SrcDir() string
-
 	// The directory where files emitted during bootstrapping are located.
 	// Usually NinjaBuildDir() + "/soong".
 	BuildDir() string
