@@ -1,10 +1,7 @@
 package bootstrap
 
 import (
-	"bytes"
 	"fmt"
-	"html/template"
-	"io/ioutil"
 	"path/filepath"
 	"reflect"
 
@@ -20,28 +17,18 @@ func ModuleTypeDocs(ctx *blueprint.Context, config interface{}, factories map[st
 	// creating the binary that we'll use to generate the non-bootstrap
 	// build.ninja file.
 	var primaryBuilders []*goBinary
-	var minibp *goBinary
 	ctx.VisitAllModulesIf(isBootstrapBinaryModule,
 		func(module blueprint.Module) {
 			binaryModule := module.(*goBinary)
 			if binaryModule.properties.PrimaryBuilder {
 				primaryBuilders = append(primaryBuilders, binaryModule)
 			}
-			if ctx.ModuleName(binaryModule) == "minibp" {
-				minibp = binaryModule
-			}
 		})
-
-	if minibp == nil {
-		panic("missing minibp")
-	}
 
 	var primaryBuilder *goBinary
 	switch len(primaryBuilders) {
 	case 0:
-		// If there's no primary builder module then that means we'll use minibp
-		// as the primary builder.
-		primaryBuilder = minibp
+		return nil, fmt.Errorf("no primary builder module present")
 
 	case 1:
 		primaryBuilder = primaryBuilders[0]
@@ -73,38 +60,6 @@ func ModuleTypeDocs(ctx *blueprint.Context, config interface{}, factories map[st
 	}
 
 	return bpdoc.AllPackages(pkgFiles, mergedFactories, ctx.ModuleTypePropertyStructs())
-}
-
-func writeDocs(ctx *blueprint.Context, config interface{}, filename string) error {
-	moduleTypeList, err := ModuleTypeDocs(ctx, config, nil)
-	if err != nil {
-		return err
-	}
-
-	buf := &bytes.Buffer{}
-
-	unique := 0
-
-	tmpl, err := template.New("file").Funcs(map[string]interface{}{
-		"unique": func() int {
-			unique++
-			return unique
-		}}).Parse(fileTemplate)
-	if err != nil {
-		return err
-	}
-
-	err = tmpl.Execute(buf, moduleTypeList)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(filename, buf.Bytes(), 0666)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 const (

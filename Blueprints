@@ -116,7 +116,6 @@ bootstrap_go_package {
         "bootstrap/cleanup.go",
         "bootstrap/command.go",
         "bootstrap/config.go",
-        "bootstrap/doc.go",
         "bootstrap/glob.go",
         "bootstrap/writedocs.go",
     ],
@@ -139,16 +138,6 @@ bootstrap_go_package {
         "bootstrap/bpdoc/properties_test.go",
         "bootstrap/bpdoc/reader_test.go",
     ],
-}
-
-bootstrap_go_binary {
-    name: "minibp",
-    deps: [
-        "blueprint",
-        "blueprint-bootstrap",
-        "gotestmain-tests",
-    ],
-    srcs: ["bootstrap/minibp/main.go"],
 }
 
 bootstrap_go_binary {
