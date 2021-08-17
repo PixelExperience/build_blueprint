@@ -32,10 +32,7 @@ import (
 type Args struct {
 	OutFile                  string
 	Subninjas                []string
-	GlobFile                 string
-	GlobListDir              string
 	DepFile                  string
-	DocFile                  string
 	Cpuprofile               string
 	Memprofile               string
 	DelveListen              string
@@ -153,7 +150,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 
 		topLevelBlueprintsFile:    args.TopFile,
 		subninjas:                 args.Subninjas,
-		globListDir:               args.GlobListDir,
 		runGoTests:                args.RunGoTests,
 		useValidations:            args.UseValidations,
 		primaryBuilderInvocations: invocations,
@@ -164,8 +160,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 	ctx.RegisterModuleType("bootstrap_go_binary", newGoBinaryModuleFactory(bootstrapConfig, false))
 	ctx.RegisterModuleType("blueprint_go_binary", newGoBinaryModuleFactory(bootstrapConfig, true))
 	ctx.RegisterSingletonType("bootstrap", newSingletonFactory(bootstrapConfig))
-
-	ctx.RegisterSingletonType("glob", globSingletonFactory(bootstrapConfig.globListDir, ctx))
 
 	blueprintFiles, errs := ctx.ParseFileList(filepath.Dir(args.TopFile), filesToParse, config)
 	if len(errs) > 0 {
@@ -219,10 +213,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 		out = buf
 	} else {
 		out = ioutil.Discard.(io.StringWriter)
-	}
-
-	if args.GlobFile != "" {
-		WriteBuildGlobsNinjaFile(args.GlobListDir, ctx, args, config)
 	}
 
 	err = ctx.WriteBuildFile(out)
