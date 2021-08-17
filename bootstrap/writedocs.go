@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"fmt"
-	"path/filepath"
 	"reflect"
 
 	"github.com/google/blueprint"
@@ -42,7 +41,7 @@ func ModuleTypeDocs(ctx *blueprint.Context, config interface{}, factories map[st
 		switch m := module.(type) {
 		case (*goPackage):
 			pkgFiles[m.properties.PkgPath] = pathtools.PrefixPaths(m.properties.Srcs,
-				filepath.Join(config.(BootstrapConfig).SrcDir(), ctx.ModuleDir(m)))
+				ctx.ModuleDir(m))
 		default:
 			panic(fmt.Errorf("unknown dependency type %T", module))
 		}
