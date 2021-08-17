@@ -27,7 +27,6 @@ import (
 
 const mainSubDir = ".primary"
 const bootstrapSubDir = ".bootstrap"
-const miniBootstrapSubDir = ".minibootstrap"
 
 var (
 	pctx = blueprint.NewPackageContext("github.com/google/blueprint/bootstrap")
@@ -162,11 +161,8 @@ var (
 		return toolDir(config), nil
 	})
 
-	mainDir          = filepath.Join("$buildDir", mainSubDir)
-	bootstrapDir     = filepath.Join("$buildDir", bootstrapSubDir)
-	miniBootstrapDir = filepath.Join("$buildDir", miniBootstrapSubDir)
-
-	minibpFile = filepath.Join(miniBootstrapDir, "minibp")
+	mainDir      = filepath.Join("$buildDir", mainSubDir)
+	bootstrapDir = filepath.Join("$buildDir", bootstrapSubDir)
 )
 
 type GoBinaryTool interface {
@@ -721,11 +717,8 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	var primaryBuilderName string
 
 	if len(primaryBuilders) == 0 {
-		// If there's no primary builder module then that means we'll use minibp
-		// as the primary builder.  We can trigger its primary builder mode with
-		// the -p flag.
-		primaryBuilderName = "minibp"
-		primaryBuilderCmdlinePrefix = append(primaryBuilderCmdlinePrefix, "-p")
+		ctx.Errorf("no primary builder module present")
+		return
 	} else if len(primaryBuilders) > 1 {
 		ctx.Errorf("multiple primary builder modules present:")
 		for _, primaryBuilder := range primaryBuilders {
