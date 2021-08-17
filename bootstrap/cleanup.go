@@ -70,7 +70,7 @@ func removeAbandonedFilesUnder(ctx *blueprint.Context,
 	for _, filePath := range filePaths {
 		isTarget := targets[filePath]
 		if !isTarget {
-			err = removeFileAndEmptyDirs(absolutePath(filePath))
+			err = removeFileAndEmptyDirs(joinPath(ctx.SrcDir(), filePath))
 			if err != nil {
 				return err
 			}
