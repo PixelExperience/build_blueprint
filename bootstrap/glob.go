@@ -151,6 +151,7 @@ func joinWithPrefixAndQuote(strs []string, prefix string) string {
 type globSingleton struct {
 	globListDir string
 	globLister  func() pathtools.MultipleGlobResults
+	srcDir      string
 	writeRule   bool
 }
 
@@ -159,6 +160,7 @@ func globSingletonFactory(globListDir string, ctx *blueprint.Context) func() blu
 		return &globSingleton{
 			globListDir: globListDir,
 			globLister:  ctx.Globs,
+			srcDir:      ctx.SrcDir(),
 		}
 	}
 }
@@ -174,7 +176,8 @@ func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 
 	// The directory for the intermediates needs to be different for bootstrap and the primary
 	// builder.
-	globsDir := globsDir(ctx.Config().(BootstrapConfig), s.globListDir)
+	bootstrapConfig := ctx.Config().(BootstrapConfig)
+	globsDir := globsDir(bootstrapConfig, s.globListDir)
 
 	for i, globs := range globBuckets {
 		fileListFile := filepath.Join(globsDir, strconv.Itoa(i))
@@ -192,7 +195,8 @@ func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 			// We don't need to write the depfile because we're guaranteed that ninja
 			// will run the command at least once (to record it into the ninja_log), so
 			// the depfile will be loaded from that execution.
-			err := pathtools.WriteFileIfChanged(absolutePath(fileListFile), globs.FileList(), 0666)
+			absoluteFileListFile := joinPath(s.srcDir, fileListFile)
+			err := pathtools.WriteFileIfChanged(absoluteFileListFile, globs.FileList(), 0666)
 			if err != nil {
 				panic(fmt.Errorf("error writing %s: %s", fileListFile, err))
 			}
@@ -207,18 +211,18 @@ func (s *globSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 }
 
 func WriteBuildGlobsNinjaFile(globListDir string, ctx *blueprint.Context, args Args, config interface{}) {
-	buffer, errs := generateGlobNinjaFile(globListDir, config, ctx.Globs)
+	buffer, errs := generateGlobNinjaFile(ctx.SrcDir(), globListDir, config, ctx.Globs)
 	if len(errs) > 0 {
 		fatalErrors(errs)
 	}
 
 	const outFilePermissions = 0666
-	err := ioutil.WriteFile(absolutePath(args.GlobFile), buffer, outFilePermissions)
+	err := ioutil.WriteFile(joinPath(ctx.SrcDir(), args.GlobFile), buffer, outFilePermissions)
 	if err != nil {
 		fatalf("error writing %s: %s", args.GlobFile, err)
 	}
 }
-func generateGlobNinjaFile(globListDir string, config interface{},
+func generateGlobNinjaFile(srcDir, globListDir string, config interface{},
 	globLister func() pathtools.MultipleGlobResults) ([]byte, []error) {
 
 	ctx := blueprint.NewContext()
@@ -226,6 +230,7 @@ func generateGlobNinjaFile(globListDir string, config interface{},
 		return &globSingleton{
 			globListDir: globListDir,
 			globLister:  globLister,
+			srcDir:      srcDir,
 			writeRule:   true,
 		}
 	})
