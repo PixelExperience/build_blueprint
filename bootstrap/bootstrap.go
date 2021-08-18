@@ -27,7 +27,6 @@ import (
 
 const mainSubDir = ".primary"
 const bootstrapSubDir = ".bootstrap"
-const miniBootstrapSubDir = ".minibootstrap"
 
 var (
 	pctx = blueprint.NewPackageContext("github.com/google/blueprint/bootstrap")
@@ -162,13 +161,8 @@ var (
 		return toolDir(config), nil
 	})
 
-	docsDir = filepath.Join(mainDir, "docs")
-
-	mainDir          = filepath.Join("$buildDir", mainSubDir)
-	bootstrapDir     = filepath.Join("$buildDir", bootstrapSubDir)
-	miniBootstrapDir = filepath.Join("$buildDir", miniBootstrapSubDir)
-
-	minibpFile = filepath.Join(miniBootstrapDir, "minibp")
+	mainDir      = filepath.Join("$buildDir", mainSubDir)
+	bootstrapDir = filepath.Join("$buildDir", bootstrapSubDir)
 )
 
 type GoBinaryTool interface {
@@ -723,11 +717,8 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	var primaryBuilderName string
 
 	if len(primaryBuilders) == 0 {
-		// If there's no primary builder module then that means we'll use minibp
-		// as the primary builder.  We can trigger its primary builder mode with
-		// the -p flag.
-		primaryBuilderName = "minibp"
-		primaryBuilderCmdlinePrefix = append(primaryBuilderCmdlinePrefix, "-p")
+		ctx.Errorf("no primary builder module present")
+		return
 	} else if len(primaryBuilders) > 1 {
 		ctx.Errorf("multiple primary builder modules present:")
 		for _, primaryBuilder := range primaryBuilders {
@@ -770,43 +761,6 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	}
 
 	if s.config.stage == StageMain {
-		if primaryBuilderName == "minibp" {
-			// This is a standalone Blueprint build, so we copy the minibp
-			// binary to the "bin" directory to make it easier to find.
-			finalMinibp := filepath.Join("$buildDir", "bin", primaryBuilderName)
-			ctx.Build(pctx, blueprint.BuildParams{
-				Rule:    cp,
-				Inputs:  []string{primaryBuilderFile},
-				Outputs: []string{finalMinibp},
-			})
-		}
-
-		// Generate build system docs for the primary builder.  Generating docs reads the source
-		// files used to build the primary builder, but that dependency will be picked up through
-		// the dependency on the primary builder itself.  There are no dependencies on the
-		// Blueprints files, as any relevant changes to the Blueprints files would have caused
-		// a rebuild of the primary builder.
-		docsFile := filepath.Join(docsDir, primaryBuilderName+".html")
-		bigbpDocs := ctx.Rule(pctx, "bigbpDocs",
-			blueprint.RuleParams{
-				Command: fmt.Sprintf("%s -b $buildDir --docs $out %s", primaryBuilderFile,
-					s.config.topLevelBlueprintsFile),
-				CommandDeps: []string{primaryBuilderFile},
-				Description: fmt.Sprintf("%s docs $out", primaryBuilderName),
-			})
-
-		ctx.Build(pctx, blueprint.BuildParams{
-			Rule:    bigbpDocs,
-			Outputs: []string{docsFile},
-		})
-
-		// Add a phony target for building the documentation
-		ctx.Build(pctx, blueprint.BuildParams{
-			Rule:    blueprint.Phony,
-			Outputs: []string{"blueprint_docs"},
-			Inputs:  []string{docsFile},
-		})
-
 		// Add a phony target for building various tools that are part of blueprint
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:    blueprint.Phony,
