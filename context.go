@@ -2340,7 +2340,9 @@ func (c *Context) PrintJSONGraph(w io.Writer) {
 		modules = append(modules, jm)
 	}
 
-	json.NewEncoder(w).Encode(modules)
+	e := json.NewEncoder(w)
+	e.SetIndent("", "\t")
+	e.Encode(modules)
 }
 
 // PrepareBuildActions generates an internal representation of all the build
