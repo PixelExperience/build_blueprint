@@ -131,7 +131,6 @@ type Config struct {
 
 	topLevelBlueprintsFile string
 	subninjas              []string
-	globListDir            string
 
 	runGoTests     bool
 	useValidations bool
