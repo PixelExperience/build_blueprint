@@ -41,11 +41,11 @@ var (
 	srcDirVariable = bootstrapVariable("srcDir", func(c BootstrapConfig) string {
 		return "."
 	})
-	buildDirVariable = bootstrapVariable("buildDir", func(c BootstrapConfig) string {
-		return c.BuildDir()
+	soongOutDirVariable = bootstrapVariable("soongOutDir", func(c BootstrapConfig) string {
+		return c.SoongOutDir()
 	})
-	ninjaBuildDirVariable = bootstrapVariable("ninjaBuildDir", func(c BootstrapConfig) string {
-		return c.NinjaBuildDir()
+	outDirVariable = bootstrapVariable("outDir", func(c BootstrapConfig) string {
+		return c.OutDir()
 	})
 	goRootVariable = bootstrapVariable("goRoot", func(c BootstrapConfig) string {
 		goroot := runtime.GOROOT()
@@ -77,11 +77,11 @@ var (
 
 type BootstrapConfig interface {
 	// The directory where files emitted during bootstrapping are located.
-	// Usually NinjaBuildDir() + "/soong".
-	BuildDir() string
+	// Usually OutDir() + "/soong".
+	SoongOutDir() string
 
 	// The output directory for the build.
-	NinjaBuildDir() string
+	OutDir() string
 
 	// Whether to compile Go code in such a way that it can be debugged
 	DebugCompilation() bool

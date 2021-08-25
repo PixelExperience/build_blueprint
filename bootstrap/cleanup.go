@@ -38,7 +38,7 @@ func removeAbandonedFilesUnder(ctx *blueprint.Context,
 		return nil
 	}
 
-	ninjaBuildDir, err := ctx.NinjaBuildDir()
+	outDir, err := ctx.OutDir()
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func removeAbandonedFilesUnder(ctx *blueprint.Context,
 	replacer := strings.NewReplacer(
 		"@@SrcDir@@", srcDir,
 		"@@BuildDir@@", buildDir)
-	ninjaBuildDir = replacer.Replace(ninjaBuildDir)
+	outDir = replacer.Replace(outDir)
 	targets := make(map[string]bool)
 	for target := range targetRules {
 		replacedTarget := replacer.Replace(target)
@@ -62,7 +62,7 @@ func removeAbandonedFilesUnder(ctx *blueprint.Context,
 		targets[filepath.Clean(replacedTarget)] = true
 	}
 
-	filePaths, err := parseNinjaLog(ninjaBuildDir, under)
+	filePaths, err := parseNinjaLog(outDir, under)
 	if err != nil {
 		return err
 	}
@@ -80,8 +80,8 @@ func removeAbandonedFilesUnder(ctx *blueprint.Context,
 	return nil
 }
 
-func parseNinjaLog(ninjaBuildDir string, under []string) ([]string, error) {
-	logFilePath := filepath.Join(ninjaBuildDir, logFileName)
+func parseNinjaLog(outDir string, under []string) ([]string, error) {
+	logFilePath := filepath.Join(outDir, logFileName)
 	logFile, err := os.Open(logFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
