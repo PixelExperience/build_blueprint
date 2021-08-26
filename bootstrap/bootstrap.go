@@ -106,7 +106,7 @@ var (
 
 	bootstrap = pctx.StaticRule("bootstrap",
 		blueprint.RuleParams{
-			Command:     "BUILDDIR=$buildDir $bootstrapCmd -i $in",
+			Command:     "BUILDDIR=$soongOutDir $bootstrapCmd -i $in",
 			CommandDeps: []string{"$bootstrapCmd"},
 			Description: "bootstrap $in",
 			Generator:   true,
@@ -131,8 +131,8 @@ var (
 				`cd / && ` +
 				`env -i "$$BUILDER" ` +
 				`    --top "$$TOP" ` +
-				`    --out "$buildDir" ` +
-				`    -n "$ninjaBuildDir" ` +
+				`    --out "$soongOutDir" ` +
+				`    -n "$outDir" ` +
 				`    -d "$out.d" ` +
 				`    $extra`,
 			CommandDeps: []string{"$builder"},
@@ -160,7 +160,7 @@ var (
 		return toolDir(config), nil
 	})
 
-	bootstrapDir = filepath.Join("$buildDir", bootstrapSubDir)
+	bootstrapDir = filepath.Join("$soongOutDir", bootstrapSubDir)
 )
 
 type GoBinaryTool interface {
@@ -171,14 +171,14 @@ type GoBinaryTool interface {
 }
 
 func bootstrapBinDir(config interface{}) string {
-	return filepath.Join(config.(BootstrapConfig).BuildDir(), bootstrapSubDir, "bin")
+	return filepath.Join(config.(BootstrapConfig).SoongOutDir(), bootstrapSubDir, "bin")
 }
 
 func toolDir(config interface{}) string {
 	if c, ok := config.(ConfigBlueprintToolLocation); ok {
 		return filepath.Join(c.BlueprintToolLocation())
 	}
-	return filepath.Join(config.(BootstrapConfig).BuildDir(), "bin")
+	return filepath.Join(config.(BootstrapConfig).SoongOutDir(), "bin")
 }
 
 func pluginDeps(ctx blueprint.BottomUpMutatorContext) {
@@ -334,7 +334,7 @@ func (g *goPackage) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	ctx.VisitDepsDepthFirstIf(isGoPluginFor(name),
 		func(module blueprint.Module) { hasPlugins = true })
 	if hasPlugins {
-		pluginSrc = filepath.Join(moduleGenSrcDir(ctx, g.config), "plugin.go")
+		pluginSrc = filepath.Join(moduleGenSrcDir(ctx), "plugin.go")
 		genSrcs = append(genSrcs, pluginSrc)
 	}
 
@@ -448,14 +448,14 @@ func (g *goBinary) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	if g.properties.Tool_dir {
 		g.installPath = filepath.Join(toolDir(ctx.Config()), name)
 	} else {
-		buildDir := ctx.Config().(BootstrapConfig).BuildDir()
-		g.installPath = filepath.Join(buildDir, bootstrapSubDir, "bin", name)
+		soongOutDir := ctx.Config().(BootstrapConfig).SoongOutDir()
+		g.installPath = filepath.Join(soongOutDir, bootstrapSubDir, "bin", name)
 	}
 
 	ctx.VisitDepsDepthFirstIf(isGoPluginFor(name),
 		func(module blueprint.Module) { hasPlugins = true })
 	if hasPlugins {
-		pluginSrc = filepath.Join(moduleGenSrcDir(ctx, g.config), "plugin.go")
+		pluginSrc = filepath.Join(moduleGenSrcDir(ctx), "plugin.go")
 		genSrcs = append(genSrcs, pluginSrc)
 	}
 
@@ -730,7 +730,7 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	}
 
 	primaryBuilderFile := filepath.Join("$BinDir", primaryBuilderName)
-	ctx.SetNinjaBuildDir(pctx, "${ninjaBuildDir}")
+	ctx.SetOutDir(pctx, "${outDir}")
 
 	for _, subninja := range s.config.subninjas {
 		ctx.AddSubninja(subninja)
@@ -781,16 +781,16 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 // directory is where the final package .a files are output and where dependant
 // modules search for this package via -I arguments.
 func packageRoot(ctx blueprint.ModuleContext) string {
-	buildDir := ctx.Config().(BootstrapConfig).BuildDir()
-	return filepath.Join(buildDir, bootstrapSubDir, ctx.ModuleName(), "pkg")
+	soongOutDir := ctx.Config().(BootstrapConfig).SoongOutDir()
+	return filepath.Join(soongOutDir, bootstrapSubDir, ctx.ModuleName(), "pkg")
 }
 
 // testRoot returns the module-specific package root directory path used for
 // building tests. The .a files generated here will include everything from
 // packageRoot, plus the test-only code.
 func testRoot(ctx blueprint.ModuleContext) string {
-	buildDir := ctx.Config().(BootstrapConfig).BuildDir()
-	return filepath.Join(buildDir, bootstrapSubDir, ctx.ModuleName(), "test")
+	soongOutDir := ctx.Config().(BootstrapConfig).SoongOutDir()
+	return filepath.Join(soongOutDir, bootstrapSubDir, ctx.ModuleName(), "test")
 }
 
 // moduleSrcDir returns the path of the directory that all source file paths are
@@ -801,12 +801,12 @@ func moduleSrcDir(ctx blueprint.ModuleContext) string {
 
 // moduleObjDir returns the module-specific object directory path.
 func moduleObjDir(ctx blueprint.ModuleContext) string {
-	buildDir := ctx.Config().(BootstrapConfig).BuildDir()
-	return filepath.Join(buildDir, bootstrapSubDir, ctx.ModuleName(), "obj")
+	soongOutDir := ctx.Config().(BootstrapConfig).SoongOutDir()
+	return filepath.Join(soongOutDir, bootstrapSubDir, ctx.ModuleName(), "obj")
 }
 
 // moduleGenSrcDir returns the module-specific generated sources path.
-func moduleGenSrcDir(ctx blueprint.ModuleContext, config *Config) string {
-	buildDir := ctx.Config().(BootstrapConfig).BuildDir()
-	return filepath.Join(buildDir, bootstrapSubDir, ctx.ModuleName(), "gen")
+func moduleGenSrcDir(ctx blueprint.ModuleContext) string {
+	soongOutDir := ctx.Config().(BootstrapConfig).SoongOutDir()
+	return filepath.Join(soongOutDir, bootstrapSubDir, ctx.ModuleName(), "gen")
 }
