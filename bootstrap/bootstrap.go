@@ -133,7 +133,6 @@ var (
 				`    --top "$$TOP" ` +
 				`    --out "$soongOutDir" ` +
 				`    -n "$outDir" ` +
-				`    -d "$out.d" ` +
 				`    $extra`,
 			CommandDeps: []string{"$builder"},
 			Description: "$builder $out",
