@@ -32,7 +32,6 @@ import (
 type Args struct {
 	OutFile                  string
 	Subninjas                []string
-	DepFile                  string
 	Cpuprofile               string
 	Memprofile               string
 	DelveListen              string
