@@ -113,13 +113,6 @@ type ConfigStopBefore interface {
 	StopBefore() StopBefore
 }
 
-type Stage int
-
-const (
-	StagePrimary Stage = iota
-	StageMain
-)
-
 type PrimaryBuilderInvocation struct {
 	Inputs  []string
 	Outputs []string
@@ -127,10 +120,7 @@ type PrimaryBuilderInvocation struct {
 }
 
 type Config struct {
-	stage Stage
-
-	topLevelBlueprintsFile string
-	subninjas              []string
+	subninjas []string
 
 	runGoTests     bool
 	useValidations bool

@@ -735,45 +735,41 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 		ctx.AddSubninja(subninja)
 	}
 
-	if s.config.stage == StagePrimary {
-		for _, i := range s.config.primaryBuilderInvocations {
-			flags := make([]string, 0)
-			flags = append(flags, primaryBuilderCmdlinePrefix...)
-			flags = append(flags, i.Args...)
+	for _, i := range s.config.primaryBuilderInvocations {
+		flags := make([]string, 0)
+		flags = append(flags, primaryBuilderCmdlinePrefix...)
+		flags = append(flags, i.Args...)
 
-			// Build the main build.ninja
-			ctx.Build(pctx, blueprint.BuildParams{
-				Rule:    generateBuildNinja,
-				Outputs: i.Outputs,
-				Inputs:  i.Inputs,
-				Args: map[string]string{
-					"builder": primaryBuilderFile,
-					"extra":   strings.Join(flags, " "),
-				},
-				// soong_ui explicitly requests what it wants to be build. This is
-				// because the same Ninja file contains instructions to run
-				// soong_build, run bp2build and to generate the JSON module graph.
-				Optional: true,
-			})
-		}
-	}
-
-	if s.config.stage == StageMain {
-		// Add a phony target for building various tools that are part of blueprint
+		// Build the main build.ninja
 		ctx.Build(pctx, blueprint.BuildParams{
-			Rule:    blueprint.Phony,
-			Outputs: []string{"blueprint_tools"},
-			Inputs:  blueprintTools,
-		})
-
-		// Add a phony target for running go tests
-		ctx.Build(pctx, blueprint.BuildParams{
-			Rule:     blueprint.Phony,
-			Outputs:  []string{"blueprint_go_packages"},
-			Inputs:   blueprintGoPackages,
+			Rule:    generateBuildNinja,
+			Outputs: i.Outputs,
+			Inputs:  i.Inputs,
+			Args: map[string]string{
+				"builder": primaryBuilderFile,
+				"extra":   strings.Join(flags, " "),
+			},
+			// soong_ui explicitly requests what it wants to be build. This is
+			// because the same Ninja file contains instructions to run
+			// soong_build, run bp2build and to generate the JSON module graph.
 			Optional: true,
 		})
 	}
+
+	// Add a phony target for building various tools that are part of blueprint
+	ctx.Build(pctx, blueprint.BuildParams{
+		Rule:    blueprint.Phony,
+		Outputs: []string{"blueprint_tools"},
+		Inputs:  blueprintTools,
+	})
+
+	// Add a phony target for running go tests
+	ctx.Build(pctx, blueprint.BuildParams{
+		Rule:     blueprint.Phony,
+		Outputs:  []string{"blueprint_go_packages"},
+		Inputs:   blueprintGoPackages,
+		Optional: true,
+	})
 }
 
 // packageRoot returns the module-specific package root directory path.  This
