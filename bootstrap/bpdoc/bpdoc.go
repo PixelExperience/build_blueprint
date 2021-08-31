@@ -121,16 +121,12 @@ func assembleModuleTypeInfo(r *Reader, name string, factory reflect.Value,
 		v := reflect.ValueOf(s).Elem()
 		t := v.Type()
 
-		// Ignore property structs with unexported or unnamed types
-		if t.PkgPath() == "" {
-			continue
-		}
 		ps, err := r.PropertyStruct(t.PkgPath(), t.Name(), v)
+
 		if err != nil {
 			return nil, err
 		}
 		ps.ExcludeByTag("blueprint", "mutated")
-
 		for _, nestedProperty := range nestedPropertyStructs(v) {
 			nestedName := nestedProperty.nestPoint
 			nestedValue := nestedProperty.value
@@ -357,7 +353,6 @@ propertyLoop:
 				s := &n[i]
 				if s.SameSubProperties(child) {
 					s.OtherNames = append(s.OtherNames, child.Name)
-					s.OtherTexts = append(s.OtherTexts, child.Text)
 					continue propertyLoop
 				}
 			}
