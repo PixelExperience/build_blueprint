@@ -147,7 +147,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 
 	ctx.RegisterBottomUpMutator("bootstrap_plugin_deps", pluginDeps)
 	ctx.RegisterModuleType("bootstrap_go_package", newGoPackageModuleFactory(bootstrapConfig))
-	ctx.RegisterModuleType("bootstrap_go_binary", newGoBinaryModuleFactory(bootstrapConfig, false))
 	ctx.RegisterModuleType("blueprint_go_binary", newGoBinaryModuleFactory(bootstrapConfig, true))
 	ctx.RegisterSingletonType("bootstrap", newSingletonFactory(bootstrapConfig))
 

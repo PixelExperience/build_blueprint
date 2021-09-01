@@ -76,6 +76,9 @@ var (
 )
 
 type BootstrapConfig interface {
+	// The directory where tools run during the build are located.
+	HostToolDir() string
+
 	// The directory where files emitted during bootstrapping are located.
 	// Usually OutDir() + "/soong".
 	SoongOutDir() string
@@ -93,13 +96,6 @@ type ConfigRemoveAbandonedFilesUnder interface {
 	//   longer active targets, but are listed in the .ninja_log.
 	// - a slice of paths that are exempt from cleaning
 	RemoveAbandonedFilesUnder(buildDir string) (under, except []string)
-}
-
-type ConfigBlueprintToolLocation interface {
-	// BlueprintToolLocation can return a path name to install blueprint tools
-	// designed for end users (bpfmt, bpmodify, and anything else using
-	// blueprint_go_binary).
-	BlueprintToolLocation() string
 }
 
 type StopBefore int
