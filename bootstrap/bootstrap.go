@@ -129,8 +129,8 @@ var (
 				`cd / && ` +
 				`env -i "$$BUILDER" ` +
 				`    --top "$$TOP" ` +
-				`    --out "$soongOutDir" ` +
-				`    -n "$outDir" ` +
+				`    --soong_out "$soongOutDir" ` +
+				`    --out "$outDir" ` +
 				`    $extra`,
 			CommandDeps: []string{"$builder"},
 			Description: "$builder $out",
