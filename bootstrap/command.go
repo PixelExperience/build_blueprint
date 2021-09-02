@@ -122,33 +122,10 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 
 	soongOutDir := config.(BootstrapConfig).SoongOutDir()
 
-	mainNinjaFile := filepath.Join("$soongOutDir", "build.ninja")
-
-	var invocations []PrimaryBuilderInvocation
-
-	if args.PrimaryBuilderInvocations != nil {
-		invocations = args.PrimaryBuilderInvocations
-	} else {
-		primaryBuilderArgs := PrimaryBuilderExtraFlags(args, mainNinjaFile)
-
-		invocations = []PrimaryBuilderInvocation{{
-			Inputs:  []string{},
-			Outputs: []string{mainNinjaFile},
-			Args:    primaryBuilderArgs,
-		}}
-	}
-
-	bootstrapConfig := &Config{
-		subninjas:                 args.Subninjas,
-		runGoTests:                args.RunGoTests,
-		useValidations:            args.UseValidations,
-		primaryBuilderInvocations: invocations,
-	}
-
 	ctx.RegisterBottomUpMutator("bootstrap_plugin_deps", pluginDeps)
-	ctx.RegisterModuleType("bootstrap_go_package", newGoPackageModuleFactory(bootstrapConfig))
-	ctx.RegisterModuleType("blueprint_go_binary", newGoBinaryModuleFactory(bootstrapConfig, true))
-	ctx.RegisterSingletonType("bootstrap", newSingletonFactory(bootstrapConfig))
+	ctx.RegisterModuleType("bootstrap_go_package", newGoPackageModuleFactory())
+	ctx.RegisterModuleType("blueprint_go_binary", newGoBinaryModuleFactory())
+	ctx.RegisterSingletonType("bootstrap", newSingletonFactory())
 
 	blueprintFiles, errs := ctx.ParseFileList(".", filesToParse, config)
 	if len(errs) > 0 {
