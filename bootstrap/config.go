@@ -88,6 +88,15 @@ type BootstrapConfig interface {
 
 	// Whether to compile Go code in such a way that it can be debugged
 	DebugCompilation() bool
+
+	// Whether to run tests for Go code
+	RunGoTests() bool
+
+	// Whether to use Ninja validations for running Go tests
+	UseValidationsForGoTests() bool
+
+	Subninjas() []string
+	PrimaryBuilderInvocations() []PrimaryBuilderInvocation
 }
 
 type ConfigRemoveAbandonedFilesUnder interface {
@@ -113,13 +122,4 @@ type PrimaryBuilderInvocation struct {
 	Inputs  []string
 	Outputs []string
 	Args    []string
-}
-
-type Config struct {
-	subninjas []string
-
-	runGoTests     bool
-	useValidations bool
-
-	primaryBuilderInvocations []PrimaryBuilderInvocation
 }
