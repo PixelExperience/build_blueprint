@@ -1008,7 +1008,7 @@ func (c *Context) MockFileSystem(files map[string][]byte) {
 		// no module list file specified; find every file named Blueprints
 		pathsToParse := []string{}
 		for candidate := range files {
-			if filepath.Base(candidate) == "Blueprints" {
+			if filepath.Base(candidate) == "Android.bp" {
 				pathsToParse = append(pathsToParse, candidate)
 			}
 		}
@@ -1129,13 +1129,8 @@ func (c *Context) parseOne(rootDir, filename string, reader io.Reader,
 		}
 	}
 
-	subBlueprintsName, _, err := getStringFromScope(scope, "subname")
 	if err != nil {
 		errs = append(errs, err)
-	}
-
-	if subBlueprintsName == "" {
-		subBlueprintsName = "Blueprints"
 	}
 
 	var blueprints []string
@@ -1818,9 +1813,9 @@ func (c *Context) addInterVariantDependency(origModule *moduleInfo, tag Dependen
 	return toInfo
 }
 
-// findBlueprintDescendants returns a map linking parent Blueprints files to child Blueprints files
-// For example, if paths = []string{"a/b/c/Android.bp", "a/Blueprints"},
-// then descendants = {"":[]string{"a/Blueprints"}, "a/Blueprints":[]string{"a/b/c/Android.bp"}}
+// findBlueprintDescendants returns a map linking parent Blueprint files to child Blueprints files
+// For example, if paths = []string{"a/b/c/Android.bp", "a/Android.bp"},
+// then descendants = {"":[]string{"a/Android.bp"}, "a/Android.bp":[]string{"a/b/c/Android.bp"}}
 func findBlueprintDescendants(paths []string) (descendants map[string][]string, err error) {
 	// make mapping from dir path to file path
 	filesByDir := make(map[string]string, len(paths))
