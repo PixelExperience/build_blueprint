@@ -91,12 +91,12 @@ func TestAliasVariation(t *testing.T) {
 		`
 
 		mockFS := map[string][]byte{
-			"Blueprints": []byte(bp),
+			"Android.bp": []byte(bp),
 		}
 
 		ctx.MockFileSystem(mockFS)
 
-		_, errs := ctx.ParseFileList(".", []string{"Blueprints"}, nil)
+		_, errs := ctx.ParseFileList(".", []string{"Android.bp"}, nil)
 		if len(errs) > 0 {
 			t.Errorf("unexpected parse errors:")
 			for _, err := range errs {
@@ -218,12 +218,12 @@ func TestCreateAliasVariations(t *testing.T) {
 		`
 
 		mockFS := map[string][]byte{
-			"Blueprints": []byte(bp),
+			"Android.bp": []byte(bp),
 		}
 
 		ctx.MockFileSystem(mockFS)
 
-		_, errs := ctx.ParseFileList(".", []string{"Blueprints"}, nil)
+		_, errs := ctx.ParseFileList(".", []string{"Android.bp"}, nil)
 		if len(errs) > 0 {
 			t.Errorf("unexpected parse errors:")
 			for _, err := range errs {
@@ -339,12 +339,12 @@ func TestAddVariationDependencies(t *testing.T) {
 		`
 
 		mockFS := map[string][]byte{
-			"Blueprints": []byte(bp),
+			"Android.bp": []byte(bp),
 		}
 
 		ctx.MockFileSystem(mockFS)
 
-		_, errs := ctx.ParseFileList(".", []string{"Blueprints"}, nil)
+		_, errs := ctx.ParseFileList(".", []string{"Android.bp"}, nil)
 		if len(errs) > 0 {
 			t.Errorf("unexpected parse errors:")
 			for _, err := range errs {
@@ -579,7 +579,7 @@ func (s *addNinjaDepsTestSingleton) GenerateBuildActions(ctx SingletonContext) {
 func TestAddNinjaFileDeps(t *testing.T) {
 	ctx := NewContext()
 	ctx.MockFileSystem(map[string][]byte{
-		"Blueprints": []byte(`
+		"Android.bp": []byte(`
 			test {
 			    name: "test",
 			}
@@ -591,7 +591,7 @@ func TestAddNinjaFileDeps(t *testing.T) {
 	ctx.RegisterTopDownMutator("testTopDownMutator", addNinjaDepsTestTopDownMutator)
 	ctx.RegisterPreSingletonType("testPreSingleton", addNinjaDepsTestPreSingletonFactory)
 	ctx.RegisterSingletonType("testSingleton", addNinjaDepsTestSingletonFactory)
-	parseDeps, errs := ctx.ParseBlueprintsFiles("Blueprints", nil)
+	parseDeps, errs := ctx.ParseBlueprintsFiles("Android.bp", nil)
 	if len(errs) > 0 {
 		t.Errorf("unexpected parse errors:")
 		for _, err := range errs {
@@ -618,7 +618,7 @@ func TestAddNinjaFileDeps(t *testing.T) {
 		t.FailNow()
 	}
 
-	if g, w := parseDeps, []string{"Blueprints", "LoadHookContext"}; !reflect.DeepEqual(g, w) {
+	if g, w := parseDeps, []string{"Android.bp", "LoadHookContext"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("ParseBlueprintsFiles: wanted deps %q, got %q", w, g)
 	}
 
