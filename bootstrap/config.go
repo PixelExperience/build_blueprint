@@ -99,14 +99,6 @@ type BootstrapConfig interface {
 	PrimaryBuilderInvocations() []PrimaryBuilderInvocation
 }
 
-type ConfigRemoveAbandonedFilesUnder interface {
-	// RemoveAbandonedFilesUnder should return two slices:
-	// - a slice of path prefixes that will be cleaned of files that are no
-	//   longer active targets, but are listed in the .ninja_log.
-	// - a slice of paths that are exempt from cleaning
-	RemoveAbandonedFilesUnder(buildDir string) (under, except []string)
-}
-
 type StopBefore int
 
 const (
