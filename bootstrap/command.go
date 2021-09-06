@@ -120,8 +120,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 		fatalf("could not enumerate files: %v\n", err.Error())
 	}
 
-	soongOutDir := config.(BootstrapConfig).SoongOutDir()
-
 	ctx.RegisterBottomUpMutator("bootstrap_plugin_deps", pluginDeps)
 	ctx.RegisterModuleType("bootstrap_go_package", newGoPackageModuleFactory())
 	ctx.RegisterModuleType("blueprint_go_binary", newGoBinaryModuleFactory())
@@ -197,14 +195,6 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 		err = f.Close()
 		if err != nil {
 			fatalf("error closing Ninja file: %s", err)
-		}
-	}
-
-	if c, ok := config.(ConfigRemoveAbandonedFilesUnder); ok {
-		under, except := c.RemoveAbandonedFilesUnder(soongOutDir)
-		err := removeAbandonedFilesUnder(ctx, srcDir, soongOutDir, under, except)
-		if err != nil {
-			fatalf("error removing abandoned files: %s", err)
 		}
 	}
 
