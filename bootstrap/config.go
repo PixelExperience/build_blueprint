@@ -102,13 +102,10 @@ type BootstrapConfig interface {
 type StopBefore int
 
 const (
+	DoEverything                  StopBefore = 0
 	StopBeforePrepareBuildActions StopBefore = 1
 	StopBeforeWriteNinja          StopBefore = 2
 )
-
-type ConfigStopBefore interface {
-	StopBefore() StopBefore
-}
 
 type PrimaryBuilderInvocation struct {
 	Inputs  []string
