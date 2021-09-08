@@ -78,7 +78,7 @@ func PrimaryBuilderExtraFlags(args Args, mainNinjaFile string) []string {
 // Returns the list of dependencies the emitted Ninja files has. These can be
 // written to the .d file for the output so that it is correctly rebuilt when
 // needed in case Blueprint is itself invoked from Ninja
-func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []string {
+func RunBlueprint(args Args, stopBefore StopBefore, ctx *blueprint.Context, config interface{}) []string {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if args.NoGC {
@@ -139,10 +139,8 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 	}
 	ninjaDeps = append(ninjaDeps, extraDeps...)
 
-	if c, ok := config.(ConfigStopBefore); ok {
-		if c.StopBefore() == StopBeforePrepareBuildActions {
-			return ninjaDeps
-		}
+	if stopBefore == StopBeforePrepareBuildActions {
+		return ninjaDeps
 	}
 
 	extraDeps, errs = ctx.PrepareBuildActions(config)
@@ -151,10 +149,8 @@ func RunBlueprint(args Args, ctx *blueprint.Context, config interface{}) []strin
 	}
 	ninjaDeps = append(ninjaDeps, extraDeps...)
 
-	if c, ok := config.(ConfigStopBefore); ok {
-		if c.StopBefore() == StopBeforeWriteNinja {
-			return ninjaDeps
-		}
+	if stopBefore == StopBeforeWriteNinja {
+		return ninjaDeps
 	}
 
 	const outFilePermissions = 0666
