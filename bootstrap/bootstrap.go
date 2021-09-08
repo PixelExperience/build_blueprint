@@ -466,19 +466,11 @@ func (g *goBinary) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		Optional:  true,
 	})
 
-	var orderOnlyDeps, validationDeps []string
-	if ctx.Config().(BootstrapConfig).UseValidationsForGoTests() {
-		validationDeps = testDeps
-	} else {
-		orderOnlyDeps = testDeps
-	}
-
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:        cp,
 		Outputs:     []string{g.installPath},
 		Inputs:      []string{aoutFile},
-		OrderOnly:   orderOnlyDeps,
-		Validations: validationDeps,
+		Validations: testDeps,
 		Optional:    !g.properties.Default,
 	})
 }
@@ -606,19 +598,11 @@ func buildGoTest(ctx blueprint.ModuleContext, testRoot, testPkgArchive,
 		Optional: true,
 	})
 
-	var orderOnlyDeps, validationDeps []string
-	if ctx.Config().(BootstrapConfig).UseValidationsForGoTests() {
-		validationDeps = testDeps
-	} else {
-		orderOnlyDeps = testDeps
-	}
-
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:        test,
 		Outputs:     []string{testPassed},
 		Inputs:      []string{testFile},
-		OrderOnly:   orderOnlyDeps,
-		Validations: validationDeps,
+		Validations: testDeps,
 		Args: map[string]string{
 			"pkg":       pkgPath,
 			"pkgSrcDir": filepath.Dir(testFiles[0]),

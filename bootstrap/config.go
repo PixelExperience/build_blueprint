@@ -92,9 +92,6 @@ type BootstrapConfig interface {
 	// Whether to run tests for Go code
 	RunGoTests() bool
 
-	// Whether to use Ninja validations for running Go tests
-	UseValidationsForGoTests() bool
-
 	Subninjas() []string
 	PrimaryBuilderInvocations() []PrimaryBuilderInvocation
 }
