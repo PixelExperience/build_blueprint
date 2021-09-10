@@ -20,7 +20,8 @@ import (
 )
 
 // AppendProperties appends the values of properties in the property struct src to the property
-// struct dst. dst and src must be the same type, and both must be pointers to structs.
+// struct dst. dst and src must be the same type, and both must be pointers to structs. Properties
+// tagged `blueprint:"mutated"` are skipped.
 //
 // The filter function can prevent individual properties from being appended by returning false, or
 // abort AppendProperties with an error by returning an error.  Passing nil for filter will append
@@ -38,7 +39,8 @@ func AppendProperties(dst interface{}, src interface{}, filter ExtendPropertyFil
 }
 
 // PrependProperties prepends the values of properties in the property struct src to the property
-// struct dst. dst and src must be the same type, and both must be pointers to structs.
+// struct dst. dst and src must be the same type, and both must be pointers to structs. Properties
+// tagged `blueprint:"mutated"` are skipped.
 //
 // The filter function can prevent individual properties from being prepended by returning false, or
 // abort PrependProperties with an error by returning an error.  Passing nil for filter will prepend
@@ -58,7 +60,7 @@ func PrependProperties(dst interface{}, src interface{}, filter ExtendPropertyFi
 // AppendMatchingProperties appends the values of properties in the property struct src to the
 // property structs in dst.  dst and src do not have to be the same type, but every property in src
 // must be found in at least one property in dst.  dst must be a slice of pointers to structs, and
-// src must be a pointer to a struct.
+// src must be a pointer to a struct.  Properties tagged `blueprint:"mutated"` are skipped.
 //
 // The filter function can prevent individual properties from being appended by returning false, or
 // abort AppendProperties with an error by returning an error.  Passing nil for filter will append
@@ -79,7 +81,7 @@ func AppendMatchingProperties(dst []interface{}, src interface{},
 // PrependMatchingProperties prepends the values of properties in the property struct src to the
 // property structs in dst.  dst and src do not have to be the same type, but every property in src
 // must be found in at least one property in dst.  dst must be a slice of pointers to structs, and
-// src must be a pointer to a struct.
+// src must be a pointer to a struct.  Properties tagged `blueprint:"mutated"` are skipped.
 //
 // The filter function can prevent individual properties from being prepended by returning false, or
 // abort PrependProperties with an error by returning an error.  Passing nil for filter will prepend
@@ -99,6 +101,7 @@ func PrependMatchingProperties(dst []interface{}, src interface{},
 
 // ExtendProperties appends or prepends the values of properties in the property struct src to the
 // property struct dst. dst and src must be the same type, and both must be pointers to structs.
+// Properties tagged `blueprint:"mutated"` are skipped.
 //
 // The filter function can prevent individual properties from being appended or prepended by
 // returning false, or abort ExtendProperties with an error by returning an error.  Passing nil for
@@ -123,7 +126,8 @@ func ExtendProperties(dst interface{}, src interface{}, filter ExtendPropertyFil
 // ExtendMatchingProperties appends or prepends the values of properties in the property struct src
 // to the property structs in dst.  dst and src do not have to be the same type, but every property
 // in src must be found in at least one property in dst.  dst must be a slice of pointers to
-// structs, and src must be a pointer to a struct.
+// structs, and src must be a pointer to a struct.  Properties tagged `blueprint:"mutated"` are
+// skipped.
 //
 // The filter function can prevent individual properties from being appended or prepended by
 // returning false, or abort ExtendMatchingProperties with an error by returning an error.  Passing
