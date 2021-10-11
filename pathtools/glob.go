@@ -130,6 +130,10 @@ func startGlob(fs FileSystem, pattern string, excludes []string,
 			info, err = fs.Lstat(match)
 		} else {
 			info, err = fs.Stat(match)
+			if err != nil && os.IsNotExist(err) {
+				// ErrNotExist from Stat may be due to a dangling symlink, retry with lstat.
+				info, err = fs.Lstat(match)
+			}
 		}
 		if err != nil {
 			return GlobResult{}, err
