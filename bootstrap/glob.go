@@ -44,22 +44,26 @@ import (
 // in a build failure with a "missing and no known rule to make it" error.
 
 var (
-	globCmd = filepath.Join("$ToolDir", "bpglob")
+	_ = pctx.VariableFunc("bootstrapGlobCmd", func(config interface{}) (string, error) {
+		return filepath.Join(config.(BootstrapConfig).SoongOutDir(), "bpglob"), nil
+	})
+
+	_ = pctx.StaticVariable("primaryBuilderGlobCmd", filepath.Join("$ToolDir", "bpglob"))
 
 	// globRule rule traverses directories to produce a list of files that match $glob
 	// and writes it to $out if it has changed, and writes the directories to $out.d
 	GlobRule = pctx.StaticRule("GlobRule",
 		blueprint.RuleParams{
-			Command: fmt.Sprintf(`%s -o $out -v %d $args`,
-				globCmd, pathtools.BPGlobArgumentVersion),
-			CommandDeps: []string{globCmd},
+			Command: fmt.Sprintf(`$globCmd -o $out -v %d $args`,
+				pathtools.BPGlobArgumentVersion),
+			CommandDeps: []string{"$globCmd"},
 			Description: "glob",
 
 			Restat:  true,
 			Deps:    blueprint.DepsGCC,
 			Depfile: "$out.d",
 		},
-		"args")
+		"args", "globCmd")
 )
 
 // GlobFileContext is the subset of ModuleContext and SingletonContext needed by GlobFile
@@ -81,7 +85,8 @@ func GlobFile(ctx GlobFileContext, pattern string, excludes []string, fileListFi
 		Rule:    GlobRule,
 		Outputs: []string{fileListFile},
 		Args: map[string]string{
-			"args": args,
+			"args":    args,
+			"globCmd": "$primaryBuilderGlobCmd",
 		},
 		Description: "glob " + pattern,
 	})
@@ -112,7 +117,8 @@ func multipleGlobFilesRule(ctx GlobFileContext, fileListFile string, shard int, 
 		Rule:    GlobRule,
 		Outputs: []string{fileListFile},
 		Args: map[string]string{
-			"args": args.String(),
+			"args":    args.String(),
+			"globCmd": "$bootstrapGlobCmd",
 		},
 		Description: fmt.Sprintf("regenerate globs shard %d of %d", shard, numGlobBuckets),
 	})
