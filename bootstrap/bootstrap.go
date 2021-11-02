@@ -149,6 +149,13 @@ var (
 		},
 		"depfile")
 
+	noop = pctx.StaticRule("noop",
+		blueprint.RuleParams{
+			Command:     "true",
+			Description: "noop",
+			Restat:      true,
+		})
+
 	_ = pctx.VariableFunc("ToolDir", func(config interface{}) (string, error) {
 		return config.(BootstrapConfig).HostToolDir(), nil
 	})
@@ -708,6 +715,13 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 		Outputs:  []string{"blueprint_go_packages"},
 		Inputs:   blueprintGoPackages,
 		Optional: true,
+	})
+
+	// out/soong/bpglob is built by microfactory before any ninja runs, write a rule that
+	// convinces ninja that it has been built to avoid tripping Soong's dangling rules check.
+	ctx.Build(pctx, blueprint.BuildParams{
+		Rule:    noop,
+		Outputs: []string{"$bootstrapGlobCmd"},
 	})
 }
 
