@@ -24,12 +24,6 @@ import (
 	"strings"
 )
 
-// BPGlobArgumentVersion is used to abort argument parsing early when the bpglob argument format
-// has changed but soong_build hasn't had a chance to rerun yet to update build-globs.ninja.
-// Increment it manually when changing the bpglob argument format.  It is located here because
-// pathtools is the only package that is shared between bpglob and bootstrap.
-const BPGlobArgumentVersion = 2
-
 var GlobMultipleRecursiveErr = errors.New("pattern contains multiple '**'")
 var GlobLastRecursiveErr = errors.New("pattern has '**' as last path element")
 var GlobInvalidRecursiveErr = errors.New("pattern contains other characters between '**' and path separator")
