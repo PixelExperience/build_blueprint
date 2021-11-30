@@ -847,7 +847,7 @@ type EarlyMutatorContext interface {
 	// automatically be updated to point to the first variant.
 	CreateVariations(...string) []Module
 
-	// CreateLocationVariations splits a module into mulitple variants, one for each name in the variantNames
+	// CreateLocalVariations splits a module into multiple variants, one for each name in the variantNames
 	// parameter.  It returns a list of new modules in the same order as the variantNames
 	// list.
 	//
@@ -1330,7 +1330,7 @@ func (l *loadHookContext) RegisterScopedModuleType(name string, factory ModuleFa
 	}
 
 	if *l.scopedModuleFactories == nil {
-		(*l.scopedModuleFactories) = make(map[string]ModuleFactory)
+		*l.scopedModuleFactories = make(map[string]ModuleFactory)
 	}
 
 	(*l.scopedModuleFactories)[name] = factory
