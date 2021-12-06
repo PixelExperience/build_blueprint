@@ -105,7 +105,8 @@ const (
 )
 
 type PrimaryBuilderInvocation struct {
-	Inputs  []string
-	Outputs []string
-	Args    []string
+	Inputs      []string
+	Outputs     []string
+	Args        []string
+	Description string
 }
