@@ -691,7 +691,8 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 			// soong_ui explicitly requests what it wants to be build. This is
 			// because the same Ninja file contains instructions to run
 			// soong_build, run bp2build and to generate the JSON module graph.
-			Optional: true,
+			Optional:    true,
+			Description: i.Description,
 		})
 	}
 
