@@ -114,6 +114,10 @@ func NinjaAndShellEscapeList(slice []string) []string {
 	return ShellEscapeList(NinjaEscapeList(slice))
 }
 
+func NinjaAndShellEscapeListIncludingSpaces(slice []string) []string {
+	return ShellEscapeListIncludingSpaces(NinjaEscapeList(slice))
+}
+
 func NinjaAndShellEscape(s string) string {
 	return ShellEscape(NinjaEscape(s))
 }
