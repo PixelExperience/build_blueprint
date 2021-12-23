@@ -2814,8 +2814,9 @@ func (c *Context) generateModuleBuildActions(config interface{},
 		func(module *moduleInfo, pause chan<- pauseSpec) bool {
 			uniqueName := c.nameInterface.UniqueName(newNamespaceContext(module), module.group.name)
 			sanitizedName := toNinjaName(uniqueName)
+			sanitizedVariant := toNinjaName(module.variant.name)
 
-			prefix := moduleNamespacePrefix(sanitizedName + "_" + module.variant.name)
+			prefix := moduleNamespacePrefix(sanitizedName + "_" + sanitizedVariant)
 
 			// The parent scope of the moduleContext's local scope gets overridden to be that of the
 			// calling Go package on a per-call basis.  Since the initial parent scope doesn't matter we
