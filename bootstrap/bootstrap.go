@@ -138,7 +138,7 @@ var (
 			Depfile:     "$out.d",
 			Restat:      true,
 		},
-		"builder", "extra")
+		"builder", "extra", "pool")
 
 	// Work around a Ninja issue.  See https://github.com/martine/ninja/pull/634
 	phony = pctx.StaticRule("phony",
@@ -679,6 +679,11 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 		flags = append(flags, primaryBuilderCmdlinePrefix...)
 		flags = append(flags, i.Args...)
 
+		pool := ""
+		if i.Console {
+			pool = "console"
+		}
+
 		// Build the main build.ninja
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:    generateBuildNinja,
@@ -687,6 +692,7 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 			Args: map[string]string{
 				"builder": primaryBuilderFile,
 				"extra":   strings.Join(flags, " "),
+				"pool":    pool,
 			},
 			// soong_ui explicitly requests what it wants to be build. This is
 			// because the same Ninja file contains instructions to run
