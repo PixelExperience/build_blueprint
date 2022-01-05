@@ -110,4 +110,5 @@ type PrimaryBuilderInvocation struct {
 	Args        []string
 	Console     bool
 	Description string
+	Env         map[string]string
 }
