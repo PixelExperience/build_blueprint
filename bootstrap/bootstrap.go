@@ -124,27 +124,10 @@ var (
 			// better to not to touch that while Blueprint and Soong are separate
 			// NOTE: The spaces at EOL are important because otherwise Ninja would
 			// omit all spaces between the different options.
-
-			// GODEBUG=asyncpreemptoff=1 disables the preemption of goroutines. This
-			// is useful because the preemption happens by sending SIGURG to the OS
-			// thread hosting the goroutine in question and each signal results in
-			// work that needs to be done by Delve; it uses ptrace to debug the Go
-			// process and the tracer process must deal with every signal (it is not
-			// possible to selectively ignore SIGURG). This makes debugging slower,
-			// sometimes by an order of magnitude depending on luck.
-			//
-			// According to measurements, this does not result in any performance loss
-			// (or gain), but if it becomes necessary for some reason, it should be
-			// possible to set asyncpreemptoff=1 only if debugging is enabled by
-			// plumbing that information through PrimaryBuilderInvocation just like
-			// --delve_path and --delve_listen.
-			//
-			// The original reason for adding async preemption to Go is here:
-			// https://github.com/golang/proposal/blob/master/design/24543-non-cooperative-preemption.md
 			Command: `cd "$$(dirname "$builder")" && ` +
 				`BUILDER="$$PWD/$$(basename "$builder")" && ` +
 				`cd / && ` +
-				`env -i GODEBUG=asyncpreemptoff=1 "$$BUILDER" ` +
+				`env -i $env "$$BUILDER" ` +
 				`    --top "$$TOP" ` +
 				`    --soong_out "$soongOutDir" ` +
 				`    --out "$outDir" ` +
@@ -155,7 +138,7 @@ var (
 			Depfile:     "$out.d",
 			Restat:      true,
 		},
-		"builder", "extra", "pool")
+		"builder", "env", "extra", "pool")
 
 	// Work around a Ninja issue.  See https://github.com/martine/ninja/pull/634
 	phony = pctx.StaticRule("phony",
@@ -701,6 +684,13 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 			pool = "console"
 		}
 
+		envAssignments := ""
+		for k, v := range i.Env {
+			// NB: This is rife with quoting issues but we don't care because we trust
+			// soong_ui to not abuse this facility too much
+			envAssignments += k + "=" + v + " "
+		}
+
 		// Build the main build.ninja
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:    generateBuildNinja,
@@ -708,6 +698,7 @@ func (s *singleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 			Inputs:  i.Inputs,
 			Args: map[string]string{
 				"builder": primaryBuilderFile,
+				"env":     envAssignments,
 				"extra":   strings.Join(flags, " "),
 				"pool":    pool,
 			},
