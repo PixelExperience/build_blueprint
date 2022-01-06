@@ -108,5 +108,7 @@ type PrimaryBuilderInvocation struct {
 	Inputs      []string
 	Outputs     []string
 	Args        []string
+	Console     bool
 	Description string
+	Env         map[string]string
 }
