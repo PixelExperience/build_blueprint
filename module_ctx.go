@@ -1368,16 +1368,16 @@ func runAndRemoveLoadHooks(ctx *Context, config interface{}, module *moduleInfo,
 
 	if v, exists := pendingHooks.Load(module.logicModule); exists {
 		hooks := v.(*[]LoadHook)
-		mctx := &loadHookContext{
-			baseModuleContext: baseModuleContext{
-				context: ctx,
-				config:  config,
-				module:  module,
-			},
-			scopedModuleFactories: scopedModuleFactories,
-		}
 
 		for _, hook := range *hooks {
+			mctx := &loadHookContext{
+				baseModuleContext: baseModuleContext{
+					context: ctx,
+					config:  config,
+					module:  module,
+				},
+				scopedModuleFactories: scopedModuleFactories,
+			}
 			hook(mctx)
 			newModules = append(newModules, mctx.newModules...)
 			deps = append(deps, mctx.ninjaFileDeps...)
