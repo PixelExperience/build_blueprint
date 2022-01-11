@@ -2300,6 +2300,26 @@ type JSONDataSupplier interface {
 	AddJSONData(d *map[string]interface{})
 }
 
+// A JSONDataAction contains the inputs and outputs of actions of a module. Which helps pass such
+// data to be included in the JSON module graph.
+type JSONDataAction struct {
+	Inputs  []string
+	Outputs []string
+}
+
+// FormatJSONDataActions puts the content of a list of JSONDataActions into a standard format to be
+// appended into the JSON module graph.
+func FormatJSONDataActions(jsonDataActions []JSONDataAction) []map[string]interface{} {
+	var actions []map[string]interface{}
+	for _, jsonDataAction := range jsonDataActions {
+		actions = append(actions, map[string]interface{}{
+			"Inputs":  jsonDataAction.Inputs,
+			"Outputs": jsonDataAction.Outputs,
+		})
+	}
+	return actions
+}
+
 func jsonModuleFromModuleInfo(m *moduleInfo) *JsonModule {
 	result := &JsonModule{
 		jsonModuleName: *jsonModuleNameFromModuleInfo(m),
