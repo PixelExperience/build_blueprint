@@ -35,7 +35,7 @@ type Definition interface {
 }
 
 // An Assignment is a variable assignment at the top level of a Blueprints file, scoped to the
-// file and and subdirs.
+// file and subdirs.
 type Assignment struct {
 	Name       string
 	NamePos    scanner.Position
@@ -289,7 +289,7 @@ func (x *Map) getPropertyImpl(name string) (Property *Property, found bool, inde
 	return nil, false, -1
 }
 
-// GetProperty removes the property with the given name, if it exists.
+// RemoveProperty removes the property with the given name, if it exists.
 func (x *Map) RemoveProperty(propertyName string) (removed bool) {
 	_, found, index := x.getPropertyImpl(propertyName)
 	if found {
