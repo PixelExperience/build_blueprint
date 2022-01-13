@@ -255,11 +255,7 @@ func extendPropertiesRecursive(dstValues []reflect.Value, srcValue reflect.Value
 
 	srcType := srcValue.Type()
 	for i, srcField := range typeFields(srcType) {
-		if srcField.PkgPath != "" {
-			// The field is not exported so just skip it.
-			continue
-		}
-		if HasTag(srcField, "blueprint", "mutated") {
+		if ShouldSkipProperty(srcField) {
 			continue
 		}
 
@@ -305,7 +301,7 @@ func extendPropertiesRecursive(dstValues []reflect.Value, srcValue reflect.Value
 					if field.Name == srcField.Name {
 						dstField = field
 						ok = true
-					} else if field.Name == "BlueprintEmbed" || field.Anonymous {
+					} else if IsEmbedded(field) {
 						embeddedDstValue := dstValue.FieldByIndex(field.Index)
 						if isStructPtr(embeddedDstValue.Type()) {
 							if embeddedDstValue.IsNil() {
@@ -539,6 +535,18 @@ func ExtendBasicType(dstFieldValue, srcFieldValue reflect.Value, order Order) {
 			panic(fmt.Errorf("unexpected pointer kind %s", ptrKind))
 		}
 	}
+}
+
+// ShouldSkipProperty indicates whether a property should be skipped in processing.
+func ShouldSkipProperty(structField reflect.StructField) bool {
+	return structField.PkgPath != "" || // The field is not exported so just skip it.
+		HasTag(structField, "blueprint", "mutated") // The field is not settable in a blueprint file
+}
+
+// IsEmbedded indicates whether a property is embedded. This is useful for determining nesting name
+// as the name of the embedded field is _not_ used in blueprint files.
+func IsEmbedded(structField reflect.StructField) bool {
+	return structField.Name == "BlueprintEmbed" || structField.Anonymous
 }
 
 type getStructEmptyError struct{}
