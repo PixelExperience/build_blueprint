@@ -451,7 +451,7 @@ func (p *parser) parseValue() (value Expression) {
 		return p.parseVariable()
 	case '-', scanner.Int: // Integer might have '-' sign ahead ('+' is only treated as operator now)
 		return p.parseIntValue()
-	case scanner.String:
+	case scanner.String, scanner.RawString:
 		return p.parseStringValue()
 	case '[':
 		return p.parseListValue()
@@ -509,7 +509,7 @@ func (p *parser) parseStringValue() *String {
 		LiteralPos: p.scanner.Position,
 		Value:      str,
 	}
-	p.accept(scanner.String)
+	p.accept(p.tok)
 	return value
 }
 

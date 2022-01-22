@@ -144,7 +144,8 @@ var validParseTestCases = []struct {
 	{`
 		foo {
 			stuff: ["asdf", "jkl;", "qwert",
-				"uiop", "bnm,"]
+				"uiop", ` + "`bnm,\n`" +
+		`]
 		}
 		`,
 		[]Definition{
@@ -153,7 +154,7 @@ var validParseTestCases = []struct {
 				TypePos: mkpos(3, 2, 3),
 				Map: Map{
 					LBracePos: mkpos(7, 2, 7),
-					RBracePos: mkpos(67, 5, 3),
+					RBracePos: mkpos(68, 6, 3),
 					Properties: []*Property{
 						{
 							Name:     "stuff",
@@ -161,7 +162,7 @@ var validParseTestCases = []struct {
 							ColonPos: mkpos(17, 3, 9),
 							Value: &List{
 								LBracePos: mkpos(19, 3, 11),
-								RBracePos: mkpos(63, 4, 19),
+								RBracePos: mkpos(64, 5, 2),
 								Values: []Expression{
 									&String{
 										LiteralPos: mkpos(20, 3, 12),
@@ -181,7 +182,7 @@ var validParseTestCases = []struct {
 									},
 									&String{
 										LiteralPos: mkpos(57, 4, 13),
-										Value:      "bnm,",
+										Value:      "bnm,\n",
 									},
 								},
 							},
