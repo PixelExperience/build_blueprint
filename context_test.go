@@ -607,39 +607,6 @@ func TestParseFailsForModuleWithoutName(t *testing.T) {
 	}
 }
 
-func TestFormatJSONDataActions(t *testing.T) {
-	inputs := []string{"fake/input/1", "fake/input/2"}
-	outputs := []string{"fake/output/1", "fake/output/2"}
-	jsonDataActionEmptyInputs := JSONDataAction{
-		Outputs: outputs,
-	}
-	jsonDataActionEmptyOutputs := JSONDataAction{
-		Inputs: inputs,
-	}
-	jsonDataAction := JSONDataAction{
-		Inputs:  inputs,
-		Outputs: outputs,
-	}
-	formatData := FormatJSONDataActions([]JSONDataAction{
-		jsonDataActionEmptyInputs, jsonDataActionEmptyOutputs, jsonDataAction})
-	if fmt.Sprint(formatData) != fmt.Sprint([]map[string]interface{}{
-		map[string]interface{}{
-			"Inputs":  []string{},
-			"Outputs": outputs,
-		},
-		map[string]interface{}{
-			"Inputs":  inputs,
-			"Outputs": []string{},
-		},
-		map[string]interface{}{
-			"Inputs":  inputs,
-			"Outputs": outputs,
-		},
-	}) {
-		t.Errorf("The formatted JSON data %s isn't expected.", formatData)
-	}
-}
-
 func Test_findVariant(t *testing.T) {
 	module := &moduleInfo{
 		variant: variant{
