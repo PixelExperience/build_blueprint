@@ -176,7 +176,7 @@ func glob(fs FileSystem, pattern string, hasRecursive bool,
 		return matches, dirs, err
 	}
 
-	dir, file := saneSplit(pattern)
+	dir, file := quickSplit(pattern)
 
 	if file == "**" {
 		if hasRecursive {
@@ -230,7 +230,7 @@ func glob(fs FileSystem, pattern string, hasRecursive bool,
 // Faster version of dir, file := filepath.Dir(path), filepath.File(path) with no allocations
 // Similar to filepath.Split, but returns "." if dir is empty and trims trailing slash if dir is
 // not "/".  Returns ".", "" if path is "."
-func saneSplit(path string) (dir, file string) {
+func quickSplit(path string) (dir, file string) {
 	if path == "." {
 		return ".", ""
 	}
