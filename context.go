@@ -686,6 +686,7 @@ func (c *Context) ListModulePaths(baseDir string) (paths []string, err error) {
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 	bytes, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, err
