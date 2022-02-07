@@ -245,7 +245,7 @@ type mockFs struct {
 }
 
 func (m *mockFs) followSymlinks(name string) string {
-	dir, file := saneSplit(name)
+	dir, file := quickSplit(name)
 	if dir != "." && dir != "/" {
 		dir = m.followSymlinks(dir)
 	}
@@ -330,7 +330,7 @@ func (m *mockFs) IsDir(name string) (bool, error) {
 }
 
 func (m *mockFs) IsSymlink(name string) (bool, error) {
-	dir, file := saneSplit(name)
+	dir, file := quickSplit(name)
 	dir = m.followSymlinks(dir)
 	name = filepath.Join(dir, file)
 
@@ -363,14 +363,14 @@ func unescapeGlob(s string) string {
 }
 
 func (m *mockFs) glob(pattern string) ([]string, error) {
-	dir, file := saneSplit(pattern)
+	dir, file := quickSplit(pattern)
 
 	dir = unescapeGlob(dir)
 	toDir := m.followSymlinks(dir)
 
 	var matches []string
 	for _, f := range m.all {
-		fDir, fFile := saneSplit(f)
+		fDir, fFile := quickSplit(f)
 		if toDir == fDir {
 			match, err := filepath.Match(file, fFile)
 			if err != nil {
@@ -402,7 +402,7 @@ func (ms *mockStat) ModTime() time.Time { return time.Time{} }
 func (ms *mockStat) Sys() interface{}   { return nil }
 
 func (m *mockFs) Lstat(name string) (os.FileInfo, error) {
-	dir, file := saneSplit(name)
+	dir, file := quickSplit(name)
 	dir = m.followSymlinks(dir)
 	name = filepath.Join(dir, file)
 
@@ -464,7 +464,7 @@ func (m *mockFs) ReadDirNames(name string) ([]string, error) {
 
 	var ret []string
 	for _, f := range m.all {
-		dir, file := saneSplit(f)
+		dir, file := quickSplit(f)
 		if dir == name && len(file) > 0 && file[0] != '.' {
 			ret = append(ret, file)
 		}
@@ -477,7 +477,7 @@ func (m *mockFs) ListDirsRecursive(name string, follow ShouldFollowSymlinks) ([]
 }
 
 func (m *mockFs) Readlink(name string) (string, error) {
-	dir, file := saneSplit(name)
+	dir, file := quickSplit(name)
 	dir = m.followSymlinks(dir)
 
 	origName := name
