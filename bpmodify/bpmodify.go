@@ -31,7 +31,8 @@ var (
 	addIdents        = new(identSet)
 	removeIdents     = new(identSet)
 
-	setString *string
+	setString  *string
+	addLiteral *string
 )
 
 func init() {
@@ -39,6 +40,7 @@ func init() {
 	flag.Var(targetedProperty, "parameter", "alias to -property=`name`")
 	flag.Var(targetedProperty, "property", "fully qualified `name` of property to modify (default \"deps\")")
 	flag.Var(addIdents, "a", "comma or whitespace separated list of identifiers to add")
+	flag.Var(stringPtrFlag{&addLiteral}, "add-literal", "a literal to add")
 	flag.Var(removeIdents, "r", "comma or whitespace separated list of identifiers to remove")
 	flag.Var(stringPtrFlag{&setString}, "str", "set a string property")
 	flag.Usage = usage
@@ -150,7 +152,7 @@ func processModule(module *parser.Module, moduleName string,
 		return false, []error{err}
 	}
 	if prop == nil {
-		if len(addIdents.idents) > 0 {
+		if len(addIdents.idents) > 0 || addLiteral != nil {
 			// We are adding something to a non-existing list prop, so we need to create it first.
 			prop, modified, err = createRecursiveProperty(module, targetedProperty.name(), targetedProperty.prefixes(), &parser.List{})
 		} else if setString != nil {
@@ -253,6 +255,21 @@ func processParameter(value parser.Expression, paramName, moduleName string,
 		if (wasSorted || *sortLists) && modified {
 			parser.SortList(file, list)
 		}
+	} else if addLiteral != nil {
+		if *sortLists {
+			return false, []error{fmt.Errorf("sorting not supported when adding a literal")}
+		}
+		list, ok := value.(*parser.List)
+		if !ok {
+			return false, []error{fmt.Errorf("expected parameter %s in module %s to be list, found %s",
+				paramName, moduleName, value.Type().String())}
+		}
+		value, errs := parser.ParseExpression(strings.NewReader(*addLiteral))
+		if errs != nil {
+			return false, errs
+		}
+		list.Values = append(list.Values, value)
+		modified = true
 	} else if setString != nil {
 		str, ok := value.(*parser.String)
 		if !ok {
@@ -324,8 +341,8 @@ func main() {
 		return
 	}
 
-	if len(addIdents.idents) == 0 && len(removeIdents.idents) == 0 && setString == nil {
-		report(fmt.Errorf("-a, -r or -str parameter is required"))
+	if len(addIdents.idents) == 0 && len(removeIdents.idents) == 0 && setString == nil && addLiteral == nil {
+		report(fmt.Errorf("-a, -add-literal, -r or -str parameter is required"))
 		return
 	}
 
