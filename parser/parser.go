@@ -98,6 +98,14 @@ func Parse(filename string, r io.Reader, scope *Scope) (file *File, errs []error
 	return parse(p)
 }
 
+func ParseExpression(r io.Reader) (value Expression, errs []error) {
+	p := newParser(r, NewScope(nil))
+	value = p.parseExpression()
+	p.accept(scanner.EOF)
+	errs = p.errors
+	return
+}
+
 type parser struct {
 	scanner  scanner.Scanner
 	tok      rune
