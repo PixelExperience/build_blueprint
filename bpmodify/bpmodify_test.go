@@ -23,13 +23,14 @@ import (
 )
 
 var testCases = []struct {
-	name      string
-	input     string
-	output    string
-	property  string
-	addSet    string
-	removeSet string
-	setString *string
+	name       string
+	input      string
+	output     string
+	property   string
+	addSet     string
+	removeSet  string
+	addLiteral *string
+	setString  *string
 }{
 	{
 		name: "add",
@@ -252,6 +253,25 @@ var testCases = []struct {
 		addSet:   "bar-v10-bar",
 	},
 	{
+		name:  "add a struct with literal",
+		input: `cc_foo {name: "foo"}`,
+		output: `cc_foo {
+    name: "foo",
+    structs: [
+        {
+            version: "1",
+            imports: [
+                "bar1",
+                "bar2",
+            ],
+        },
+    ],
+}
+`,
+		property:   "structs",
+		addLiteral: proptools.StringPtr(`{version: "1", imports: ["bar1", "bar2"]}`),
+	},
+	{
 		name: "set string",
 		input: `
 			cc_foo {
@@ -301,6 +321,7 @@ func TestProcessModule(t *testing.T) {
 			addIdents.Set(testCase.addSet)
 			removeIdents.Set(testCase.removeSet)
 			setString = testCase.setString
+			addLiteral = testCase.addLiteral
 
 			inAst, errs := parser.ParseAndEval("", strings.NewReader(testCase.input), parser.NewScope(nil))
 			if len(errs) > 0 {
