@@ -30,9 +30,9 @@ var (
 	targetedProperty = new(qualifiedProperty)
 	addIdents        = new(identSet)
 	removeIdents     = new(identSet)
-
-	setString  *string
-	addLiteral *string
+	removeProperty   = flag.Bool("remove-property", false, "remove the property")
+	setString        *string
+	addLiteral       *string
 )
 
 func init() {
@@ -147,7 +147,7 @@ func findModules(file *parser.File) (modified bool, errs []error) {
 
 func processModule(module *parser.Module, moduleName string,
 	file *parser.File) (modified bool, errs []error) {
-	prop, err := getRecursiveProperty(module, targetedProperty.name(), targetedProperty.prefixes())
+	prop, parent, err := getRecursiveProperty(module, targetedProperty.name(), targetedProperty.prefixes())
 	if err != nil {
 		return false, []error{err}
 	}
@@ -168,25 +168,28 @@ func processModule(module *parser.Module, moduleName string,
 			// Here should be unreachable, but still handle it for completeness.
 			return false, []error{err}
 		}
+	} else if *removeProperty {
+		// remove-property is used solely, so return here.
+		return parent.RemoveProperty(prop.Name), nil
 	}
 	m, errs := processParameter(prop.Value, targetedProperty.String(), moduleName, file)
 	modified = modified || m
 	return modified, errs
 }
 
-func getRecursiveProperty(module *parser.Module, name string, prefixes []string) (prop *parser.Property, err error) {
-	prop, _, err = getOrCreateRecursiveProperty(module, name, prefixes, nil)
-	return prop, err
+func getRecursiveProperty(module *parser.Module, name string, prefixes []string) (prop *parser.Property, parent *parser.Map, err error) {
+	prop, parent, _, err = getOrCreateRecursiveProperty(module, name, prefixes, nil)
+	return prop, parent, err
 }
 
 func createRecursiveProperty(module *parser.Module, name string, prefixes []string,
 	empty parser.Expression) (prop *parser.Property, modified bool, err error) {
-
-	return getOrCreateRecursiveProperty(module, name, prefixes, empty)
+	prop, _, modified, err = getOrCreateRecursiveProperty(module, name, prefixes, empty)
+	return prop, modified, err
 }
 
 func getOrCreateRecursiveProperty(module *parser.Module, name string, prefixes []string,
-	empty parser.Expression) (prop *parser.Property, modified bool, err error) {
+	empty parser.Expression) (prop *parser.Property, parent *parser.Map, modified bool, err error) {
 	m := &module.Map
 	for i, prefix := range prefixes {
 		if prop, found := m.GetProperty(prefix); found {
@@ -195,7 +198,7 @@ func getOrCreateRecursiveProperty(module *parser.Module, name string, prefixes [
 			} else {
 				// We've found a property in the AST and such property is not of type
 				// *parser.Map, which must mean we didn't modify the AST.
-				return nil, false, fmt.Errorf("Expected property %q to be a map, found %s",
+				return nil, nil, false, fmt.Errorf("Expected property %q to be a map, found %s",
 					strings.Join(prefixes[:i+1], "."), prop.Value.Type())
 			}
 		} else if empty != nil {
@@ -206,18 +209,18 @@ func getOrCreateRecursiveProperty(module *parser.Module, name string, prefixes [
 			// check after this for loop must fail, because the node we inserted is an
 			// empty parser.Map, thus this function will return |modified| is true.
 		} else {
-			return nil, false, nil
+			return nil, nil, false, nil
 		}
 	}
 	if prop, found := m.GetProperty(name); found {
 		// We've found a property in the AST, which must mean we didn't modify the AST.
-		return prop, false, nil
+		return prop, m, false, nil
 	} else if empty != nil {
 		prop = &parser.Property{Name: name, Value: empty}
 		m.Properties = append(m.Properties, prop)
-		return prop, true, nil
+		return prop, m, true, nil
 	} else {
-		return nil, false, nil
+		return nil, nil, false, nil
 	}
 }
 
@@ -341,8 +344,13 @@ func main() {
 		return
 	}
 
-	if len(addIdents.idents) == 0 && len(removeIdents.idents) == 0 && setString == nil && addLiteral == nil {
-		report(fmt.Errorf("-a, -add-literal, -r or -str parameter is required"))
+	if len(addIdents.idents) == 0 && len(removeIdents.idents) == 0 && setString == nil && addLiteral == nil && !*removeProperty {
+		report(fmt.Errorf("-a, -add-literal, -r, -remove-property or -str parameter is required"))
+		return
+	}
+
+	if *removeProperty && (len(addIdents.idents) > 0 || len(removeIdents.idents) > 0 || setString != nil || addLiteral != nil) {
+		report(fmt.Errorf("-remove-property cannot be used with other parameter(s)"))
 		return
 	}
 
