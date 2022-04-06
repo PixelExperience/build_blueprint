@@ -39,7 +39,7 @@ import (
 // modified as necessary by the Mutator.
 //
 // The Module implementation can access the build configuration as well as any
-// modules on which on which it depends (as defined by the "deps" property
+// modules on which it depends (as defined by the "deps" property
 // specified in the Blueprints file, dynamically added by implementing the
 // (deprecated) DynamicDependerModule interface, or dynamically added by a
 // BottomUpMutator) using the ModuleContext passed to GenerateBuildActions.
@@ -1288,20 +1288,21 @@ type LoadHookContext interface {
 
 	// CreateModule creates a new module by calling the factory method for the specified moduleType, and applies
 	// the specified property structs to it as if the properties were set in a blueprint file.
-	CreateModule(ModuleFactory, ...interface{}) Module
+	CreateModule(ModuleFactory, string, ...interface{}) Module
 
 	// RegisterScopedModuleType creates a new module type that is scoped to the current Blueprints
 	// file.
 	RegisterScopedModuleType(name string, factory ModuleFactory)
 }
 
-func (l *loadHookContext) CreateModule(factory ModuleFactory, props ...interface{}) Module {
+func (l *loadHookContext) CreateModule(factory ModuleFactory, typeName string, props ...interface{}) Module {
 	module := newModule(factory)
 
 	module.relBlueprintsFile = l.module.relBlueprintsFile
 	module.pos = l.module.pos
 	module.propertyPos = l.module.propertyPos
 	module.createdBy = l.module
+	module.typeName = typeName
 
 	for _, p := range props {
 		err := proptools.AppendMatchingProperties(module.properties, p, nil)
